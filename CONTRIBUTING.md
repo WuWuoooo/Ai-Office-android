@@ -36,8 +36,8 @@ Setup
 1. Fork the repository.
 2. Clone your fork:
    ```
-   git clone https://github.com/yourusername/ai-office.git
-   cd ai-office
+   git clone https://github.com/WuWuoooo/Ai-Office-android.git
+   cd Ai-Office-android
    ```
 3. Add the upstream remote:
    ```
@@ -234,12 +234,12 @@ Ai Office 有一些必须遵守的原则。违反以下任何一条的 PR 都会
 1. Fork 本仓库。
 2. 克隆你的 fork：
    ```
-   git clone https://github.com/yourusername/ai-office.git
-   cd ai-office
+   git clone https://github.com/WuWuoooo/Ai-Office-android.git
+   cd Ai-Office-android
    ```
 3. 添加上游仓库：
    ```
-   git remote add upstream https://github.com/originalusername/ai-office.git
+   git remote add upstream https://github.com/WuWuoooo/Ai-Office-android.git
    ```
 4. 用 AIDE 或 Android Studio 打开工程。
 5. 先编译一次，确认基线能跑通。
