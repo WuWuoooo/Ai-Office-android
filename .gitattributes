@@ -1,0 +1,76 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Markdown files
+*.md text eol=lf
+
+# Source code
+*.java text eol=lf
+*.xml text eol=lf
+*.gradle text eol=lf
+
+# Binary files
+*.apk binary
+*.aab binary
+*.so binary
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.dmg binary
+*.exe binary
+*.dll binary
+*.lib binary
+*.o binary
+*.a binary
+*.class binary
+*.dex binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.svg binary
+*.webp binary
+*.mp3 binary
+*.mp4 binary
+*.avi binary
+*.mov binary
+*.wmv binary
+*.flv binary
+*.webm binary
+*.mkv binary
+*.m4v binary
+*.3gp binary
+*.wav binary
+*.ogg binary
+*.aac binary
+*.m4a binary
+*.wma binary
+*.flac binary
+*.opus binary
+*.ape binary
+*.ac3 binary
+*.dts binary
+*.amr binary
+*.au binary
+*.ra binary
+*.rm binary
+*.rmvb binary
+*.asf binary
+*.divx binary
+*.xvid binary
+*.vob binary
+*.ts binary
+*.m2ts binary
+*.f4v binary
+*.f4p binary
+*.f4a binary
+*.f4b binary

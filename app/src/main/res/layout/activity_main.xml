@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/md_surface">
+
+    <LinearLayout
+        android:id="@+id/llMainRoot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/md_surface">
+
+        <!-- ===== 顶栏：菜单 | 标题(显示模型名，可点切换) | 设置 ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:background="@android:color/transparent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp">
+
+            <ImageView
+                android:id="@+id/btnMenu"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="菜单"
+                android:padding="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_menu" />
+
+            <LinearLayout
+                android:id="@+id/btnModel"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxWidth="220dp"
+                    android:singleLine="true"
+                    android:text="deepseek-flash"
+                    android:textColor="@color/md_on_surface"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvModelName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxWidth="180dp"
+                    android:singleLine="true"
+                    android:text=""
+                    android:textColor="@color/md_primary"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/btnSettings"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="设置"
+                android:padding="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_cog_outline" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/md_divider" />
+
+        <TextView
+            android:id="@+id/tvTokenStats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="3dp"
+            android:text="输入: 0 | 输出: 0 | 缓存命中: 0%"
+            android:textColor="@color/md_outline"
+            android:textSize="11sp" />
+
+        <!-- ===== 消息区 + 居中欢迎语 ===== -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ScrollView
+                android:id="@+id/svMessages"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:padding="8dp"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:id="@+id/llMessages"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+            <LinearLayout
+                android:id="@+id/layoutWelcome"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="你好，我能帮什么忙吗？"
+                    android:textColor="@color/md_on_surface"
+                    android:textSize="21sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="可以让我读写文件、联网搜索、处理照片"
+                    android:textColor="@color/md_outline"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="输入 @ 可以引用本地文件"
+                    android:textColor="@color/md_outline"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- ===== 图片预览 ===== -->
+        <LinearLayout
+            android:id="@+id/llImagePreview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="6dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/ivPreview"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/bubble_user_bg"
+                android:scaleType="centerCrop" />
+
+            <TextView
+                android:id="@+id/tvPreviewCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:text=""
+                android:textColor="@color/md_outline"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btnRemoveImage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:background="@drawable/outline_btn_bg"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text="移除图片"
+                android:textColor="@color/md_error"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- ===== 引用追问条 ===== -->
+        <LinearLayout
+            android:id="@+id/llQuoteBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="6dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvQuoteText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/code_bg"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text=""
+                android:textColor="@color/md_text_sub"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btnClearQuote"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:background="@drawable/outline_btn_bg"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text="取消引用"
+                android:textColor="@color/md_error"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- ===== 底部输入栏 ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:elevation="0dp"
+            android:gravity="bottom"
+            android:orientation="horizontal"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="0dp">
+
+            <TextView
+                android:id="@+id/btnPlus"
+                android:layout_width="38dp"
+                android:layout_marginTop="16dp"
+                android:layout_height="38dp"
+                android:layout_marginRight="6dp"
+                android:background="@drawable/circle_btn_bg"
+                android:gravity="center"
+                android:text="+"
+                android:textColor="@color/md_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/etInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/edittext_bg"
+                android:gravity="center_vertical|left"
+                android:hint="给 AI Office 发送消息，@ 可引用文件"
+                android:inputType="textMultiLine|textCapSentences"
+                android:maxLines="6"
+                android:minHeight="40dp"
+                android:paddingLeft="14dp"
+                android:paddingRight="14dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/btnSend"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginLeft="6dp"
+                android:background="@drawable/send_btn_bg"
+                android:gravity="center"
+                android:minWidth="64dp"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:text="发送"
+                android:textColor="@color/md_on_primary"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ===== 侧边抽屉 ===== -->
+    <LinearLayout
+        android:id="@+id/layoutDrawer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/md_drawer_mask"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="290dp"
+            android:layout_height="match_parent"
+            android:background="@color/md_surface"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <!-- ★ 标题行：左边"对话记录"，右边 ⋯ 更多菜单按钮 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="对话记录"
+                    android:textColor="@color/md_on_surface"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnMore"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:gravity="center"
+                    android:text="⋯"
+                    android:textColor="@color/md_on_surface"
+                    android:textSize="22sp" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/etSessionSearch"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/edittext_bg"
+                android:hint="搜索对话"
+                android:inputType="text"
+                android:paddingLeft="14dp"
+                android:paddingRight="14dp"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btnNewChat"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/send_btn_bg"
+                android:gravity="center"
+                android:text="+ 新建对话"
+                android:textColor="@color/md_on_primary"
+                android:textSize="15sp" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:id="@+id/llHistoryList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="点击切换会话，长按可重命名/删除/导出"
+                android:textColor="@color/md_outline"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/viewDrawerMask"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+    </LinearLayout>
+</FrameLayout>

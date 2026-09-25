@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ai Office</string>
+    <string name="app_version">Version 1.0</string>
+    <string name="app_description">AI-powered office assistant for file management and content creation</string>
+    <string name="a11y_service_desc">允许 AI Office 读取屏幕内容并代替你执行点击、输入、返回等操作。仅在 AI 调用「手机操控」工具时使用，所有操作都会显示在聊天记录中。</string>
+</resources>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 浅色模式配色（深色模式见 res/values-night/colors.xml） -->
+<resources>
+    <color name="md_primary">#4A6CF7</color>
+    <color name="md_on_primary">#FFFFFF</color>
+    <color name="md_primary_container">#EAF2FF</color>
+    <color name="md_surface">#FFFFFF</color>
+    <color name="md_surface_variant">#F5F5F5</color>
+    <color name="md_on_surface">#1D1B20</color>
+    <color name="md_outline">#79747E</color>
+    <color name="md_error">#B3261E</color>
+
+    <color name="md_divider">#F0F0F0</color>
+    <color name="md_drawer_mask">#80000000</color>
+
+    <!-- 气泡 -->
+    <color name="md_bubble_ai">#F5F5F5</color>
+    <color name="md_bubble_user">#EAF2FF</color>
+
+    <!-- 代码块 / 工具面板 -->
+    <color name="md_code_bg">#F4F5F7</color>
+    <color name="md_code_border">#E6E8EC</color>
+    <color name="md_code_text">#1B3A57</color>
+
+    <!-- 输入框 -->
+    <color name="md_edit_bg">#F5F5F5</color>
+    <color name="md_edit_border">#E0E0E0</color>
+
+    <!-- 圆形按钮 -->
+    <color name="md_circle_bg">#F2F4F8</color>
+    <color name="md_circle_border">#E2E4E8</color>
+
+    <!-- 描边按钮 -->
+    <color name="md_outline_btn_bg">#FFFFFF</color>
+    <color name="md_outline_btn_border">#C9CBD1</color>
+
+    <!-- Markdown 细节 -->
+    <color name="md_text_sub">#6B6B6B</color>
+    <color name="md_table_grid">#E2E4E8</color>
+    <color name="md_table_head">#F6F7F9</color>
+    <color name="md_table_body">#FFFFFF</color>
+    <color name="md_quote_bar">#CFD4DA</color>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 浅色主题（深色模式见 res/values-night/styles.xml） -->
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
+    <style name="AppThemeLight" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
+    <style name="AppThemeDark" parent="@android:style/Theme.DeviceDefault.NoActionBar" />
+</resources>

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.ai.office">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 语音通话：录音权限 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 视频通话：摄像头权限 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 视觉操控：MediaProjection 投屏前台服务（Android 14 强制要求） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- 视频通话手电筒 -->
+<uses-permission android:name="android.permission.FLASHLIGHT" />
+
+    <!-- Android 11+ 需要显式声明才能查询设备上的语音识别服务与相机应用 -->
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:label="Ai Office"
+        android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="true"
+        android:forceDarkAllowed="false"
+        android:theme="@style/AppTheme"
+        android:versionCode="2"
+        android:versionName="1.1.0">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|fontScale|density|locale|layoutDirection|navigation"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|fontScale|density|locale|layoutDirection|navigation"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 设置二级页：按分类显示具体设置项 -->
+        <activity
+            android:name=".SettingsDetailActivity"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|fontScale|density|locale|layoutDirection|navigation"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 语音 / 视频通话：完全动态构建 UI，不需要 XML 布局 -->
+        <activity
+            android:name=".VoiceCallActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 内置浏览器：用于打开搜索结果 / 网页阅读卡片 -->
+        <activity
+            android:name=".WebViewActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 无障碍服务：AI 操控手机（默认不会启用，需用户在系统设置里手动开启） -->
+        <service
+            android:name=".AutoAccessibilityService"
+            android:exported="false"
+            android:label="AI Office 手机操控"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- 视觉操控：投屏前台服务（Android 14 起强制要求，否则 MediaProjection 启动失败） -->
+        <service
+            android:name=".ProjectionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+    </application>
+</manifest>
