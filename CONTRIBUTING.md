@@ -1,4 +1,4 @@
-Contributing to Ai Office
+# Contributing to Ai Office
 
 感谢你对 Ai Office 的兴趣！本文档说明如何为项目做出贡献。
 
@@ -6,42 +6,43 @@ Thank you for your interest in contributing to Ai Office! This document explains
 
 ---
 
-English
+## English
 
-Before You Start
+### Before You Start
 
 Ai Office has some strict principles that any contribution must respect. Pull requests that violate these will be rejected regardless of quality:
 
-1. Zero third-party dependencies. No OkHttp, no Gson, no AndroidX, no Material Design, no Retrofit, no Glide, no Room, nothing. Everything must be built on the Android native SDK.
-2. Pure Java, no Kotlin. The project is Java-only for AIDE compatibility.
-3. No lambda expressions or method references. AIDE's compiler does not support them. All callbacks must be anonymous inner classes (new View.OnClickListener() { ... }).
-4. Anonymous inner classes must capture final locals. All local variables and parameters referenced inside anonymous inner classes must be declared final (or be effectively final where AIDE accepts it — when in doubt, add final).
-5. Dynamic UI. Layout XML files should contain only skeletons. All complex UI must be built in Java at runtime. Do not add new layout files unless absolutely necessary.
-6. APK size matters. The current APK is around 233 KB. Every change should keep it as small as possible. Avoid adding resources, images, or new drawables unless they are tiny shape XML files.
+1. **Zero third-party dependencies.** No OkHttp, no Gson, no AndroidX, no Material Design, no Retrofit, no Glide, no Room, nothing. Everything must be built on the Android native SDK.
+2. **Pure Java, no Kotlin.** The project is Java-only for AIDE compatibility.
+3. **No lambda expressions or method references.** AIDE's compiler does not support them. All callbacks must be anonymous inner classes (`new View.OnClickListener() { ... }`).
+4. **Anonymous inner classes must capture final locals.** All local variables and parameters referenced inside anonymous inner classes must be declared `final` (or be effectively final where AIDE accepts it — when in doubt, add `final`).
+5. **Dynamic UI.** Layout XML files should contain only skeletons. All complex UI must be built in Java at runtime. Do not add new layout files unless absolutely necessary.
+6. **APK size matters.** The current APK is around 328 KB. Every change should keep it as small as possible. Avoid adding resources, images, or new drawables unless they are tiny shape XML files.
 
 If you are unsure whether a change is acceptable, open an issue and ask before writing code.
 
-Getting Started
+### Getting Started
 
-Prerequisites
+#### Prerequisites
 
-· AIDE (recommended) — the project is designed to compile on-device with AIDE.
-· Android Studio (optional) — for larger refactors, but you must ensure AIDE still compiles the result.
-· Android SDK API Level 19+ (Android 4.4 KitKat).
-· Java 7/8 compatible code only.
-· Git.
+- **AIDE (recommended)** — the project is designed to compile on-device with AIDE.
+- **Android Studio (optional)** — for larger refactors, but you must ensure AIDE still compiles the result.
+- Android SDK API Level 19+ (Android 4.4 KitKat).
+- Java 7/8 compatible code only.
+- Git.
 
-Setup
+#### Setup
 
 1. Fork the repository.
 2. Clone your fork:
-   ```
+   ```bash
    git clone https://github.com/WuWuoooo/Ai-Office-android.git
    cd Ai-Office-android
-   ```
+```
+
 3. Add the upstream remote:
-   ```
-   git remote add upstream https://github.com/originalusername/ai-office.git
+   ```bash
+   git remote add upstream https://github.com/WuWuoooo/Ai-Office-android.git
    ```
 4. Open the project in AIDE or Android Studio.
 5. Compile once to confirm the baseline works.
@@ -50,7 +51,7 @@ Development Workflow
 
 1. Create a branch
 
-```
+```bash
 git checkout -b feature/your-feature-name
 ```
 
@@ -92,7 +93,7 @@ Type prefixes: feat, fix, docs, style, refactor, perf, test, chore.
 
 5. Push and open a Pull Request
 
-```
+```bash
 git push origin feature/your-feature-name
 ```
 
@@ -215,7 +216,7 @@ Ai Office 有一些必须遵守的原则。违反以下任何一条的 PR 都会
 3. 禁止 Lambda 表达式和方法引用。 AIDE 的编译器不支持。所有回调必须写成匿名内部类（new View.OnClickListener() { ... }）。
 4. 匿名内部类引用的变量必须 final。 匿名内部类里引用的所有局部变量和参数都要加 final（AIDE 对 effectively final 的判定不严格，拿不准就加 final）。
 5. 动态 UI。 布局 XML 文件只放骨架，复杂 UI 一律在 Java 里运行时构建。不要随便新增布局文件。
-6. APK 体积很重要。 当前 APK 约 233 KB。每次改动都要尽量保持体积不变。不要新增图片资源或大量 drawable，除非是极小的 shape XML。
+6. APK 体积很重要。 当前 APK 约 328 KB。每次改动都要尽量保持体积不变。不要新增图片资源或大量 drawable，除非是极小的 shape XML。
 
 如果不确定某个改动是否可以接受，先提 issue 讨论，再写代码。
 
@@ -233,12 +234,12 @@ Ai Office 有一些必须遵守的原则。违反以下任何一条的 PR 都会
 
 1. Fork 本仓库。
 2. 克隆你的 fork：
-   ```
+   ```bash
    git clone https://github.com/WuWuoooo/Ai-Office-android.git
    cd Ai-Office-android
    ```
 3. 添加上游仓库：
-   ```
+   ```bash
    git remote add upstream https://github.com/WuWuoooo/Ai-Office-android.git
    ```
 4. 用 AIDE 或 Android Studio 打开工程。
@@ -248,7 +249,7 @@ Ai Office 有一些必须遵守的原则。违反以下任何一条的 PR 都会
 
 1. 建分支
 
-```
+```bash
 git checkout -b feature/your-feature-name
 ```
 
@@ -290,7 +291,7 @@ chore: 版本号升到 1.0.1
 
 5. 推送并创建 PR
 
-```
+```bash
 git push origin feature/your-feature-name
 ```
 
