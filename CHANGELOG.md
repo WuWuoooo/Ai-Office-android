@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog,
 and this project adheres to Semantic Versioning.
 
+[1.2.0] - 2026-09-25
+
+多语言系统（架构级新能力）
+
+· ★ 新增 LanguageManager.java：三层加载（自定义 filesDir/lang → assets/lang → 代码内置兜底），任意一层命中即可用
+· ★ t(key, 中文默认) API：找不到 key 时回退到中文原文，实现「渐进式接入」——未翻译的页面不会变空白
+· ★ 内置两套语言：简体中文 zh-CN / 英文 en-US，全部提供完整 key 集（约 350 条）
+· ★ 语言包格式：JSON，含 name / author / version / strings 字段；已提供日文 ja-JP 示例
+· ★ 导入 / 导出：可从任意来源导入语言包（存到 filesDir/lang/custom_xxx.json），可导出当前语言包到 /sdcard/AI/lang/
+· 切换语言后设置页立即生效；主界面、二级页、对话框、Toast 下次进入时生效
+
+设置页新增「语言」分类
+
+· ★ 设置首页「应用」分组新增「语言」入口，显示当前语言名
+· ★ 语言二级页：内置语言列表（点选切换）、自定义语言包列表（点选切换 / 长按删除）、导入、导出
+· 内置语言包导出后可作为翻译模板，用户翻译后重新导入即生效
+
+界面语言化
+
+· ★ 设置首页 / 设置二级页（13 个分类）全部接入语言包
+· ★ 主界面：欢迎语、输入框 hint、发送按钮、抽屉、会话菜单、消息操作行、工具面板、搜索卡片、阅读卡片、各类对话框与 Toast 全部接入
+· ★ 实时通话页：状态文字、系统提示接入
+· 保持内部数据（AI 内部指令、工具返回值、系统消息）为中文，避免影响模型理解
+
+Fixed
+
+· ★ 修复 AIDE 编译器对 Java 字符串中 `\n` / `\"` 转义处理不一致导致 LanguageManager.java 报 1856 个 Unexpected end of declaration：内置语言包改用 `|` 分隔的 String[] 常量，值内不含任何转义字符
+· ★ 修复 assets 中 en-US.json 内容不全导致切换英文后二级页不生效：补全全部 key
+
+Changed
+
+· BaseActivity 不感知语言；由各 Activity 自行调用 LanguageManager.t(...) 取文案，避免全局 Context 包装带来的兼容问题
+
+
 [1.1.0] - 2026-09-25
 
 实时通话（架构级新能力，替代旧版语音识别方案）

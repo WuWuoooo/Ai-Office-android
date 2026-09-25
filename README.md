@@ -6,7 +6,7 @@ An AI office assistant running on Android. APK size 323.07 KB, zero third-party 
 
 ## Highlights
 
-- APK size 323.07 KB — most AI apps are tens of MB; Ai Office compresses it to less than 0.35 MB
+- APK size 347.65 KB — most AI apps are tens of MB; Ai Office compresses it to less than 0.35 MB
 - Zero third-party dependencies — no OkHttp, no Gson, no AndroidX, no Material Design; all code is based on native Android system APIs
 - Pure Java + dynamically built UI — layout files contain only skeletons; all interfaces are built at runtime
 - AIDE compatible — can compile and modify directly on the phone
@@ -83,6 +83,7 @@ Multiple sessions, history search, rename, export Markdown, share full text. You
 - Dark / Light / Follow system, three themes
 - Font scaling: Small / Standard / Large / Extra large / Huge
 - Markdown rendering: headings, lists, tables, quotes, code blocks, links
+- Multi-language: built-in 简体中文 / English; import custom language packs (JSON) to add more languages; export current language pack as template
 
 ## Tech Stack
 
@@ -178,6 +179,7 @@ app/src/main/java/com/ai/office/
 - RealtimeClient.java            # Realtime event wrapper
 - WebSocketClient.java           # Hand-written RFC6455 WebSocket client
 - WebViewActivity.java           # Built-in browser
+- LanguageManager.java          # Language pack loader (custom / assets / builtin fallback)
 - UiUtils.java                   # Utility class
 
 ## Plugin Examples

@@ -148,7 +148,6 @@
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
                 </LinearLayout>
 
-                <!-- ★ 新增：实时通话（GLM-Realtime / OpenAI Realtime） -->
                 <LinearLayout
                     android:id="@+id/rowRealtime"
                     android:layout_width="match_parent"
@@ -209,6 +208,21 @@
                     android:paddingBottom="14dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="外观" android:textColor="@color/md_on_surface" android:textSize="15sp" />
                     <TextView android:id="@+id/tvAppearanceState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:maxWidth="140dp" android:singleLine="true" android:text="" android:textColor="@color/md_outline" android:textSize="13sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/rowLanguage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="16dp"
+                    android:paddingRight="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="语言" android:textColor="@color/md_on_surface" android:textSize="15sp" />
+                    <TextView android:id="@+id/tvLanguageState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:maxWidth="140dp" android:singleLine="true" android:text="" android:textColor="@color/md_outline" android:textSize="13sp" />
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
                 </LinearLayout>
 

@@ -130,6 +130,14 @@ public class MainActivity extends BaseActivity {
         String id; String name; String args; String result;
     }
 
+    /** 短写：把 key 翻译成当前语言，找不到就回退到中文默认值 */
+    private String t(String key, String def) { return LanguageManager.t(this, key, def); }
+
+    /** Toast 使用当前语言文案 */
+    private void toast(String key, String def) {
+        try { Toast.makeText(this, t(key, def), Toast.LENGTH_SHORT).show(); } catch (Throwable th) {}
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         try {
@@ -160,8 +168,14 @@ public class MainActivity extends BaseActivity {
             try { llMainRoot = (LinearLayout) findViewById(R.id.llMainRoot); } catch (Throwable t) {}
             TextView btnClearQuote = (TextView) findViewById(R.id.btnClearQuote);
             if (btnClearQuote != null) {
-                btnClearQuote.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { clearQuote(); } });
+                btnClearQuote.setText(t("main_quote_cancel", "取消引用"));
+                btnClearQuote.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View v) { clearQuote(); }
+                });
             }
+
+            // 应用本地化文本到 XML 中的静态文案
+            applyUiTexts();
 
             fileExecutor = new FileToolExecutor(this);
             webExecutor = new WebToolExecutor(this);
@@ -175,35 +189,31 @@ public class MainActivity extends BaseActivity {
             loadSessionIndex();
 
             boolean draftRestored = restoreDraftIfAny();
-if (!draftRestored) {
-    // 读取启动模式：new=新对话，last=上次对话（默认）
-    String startupMode = UiUtils.getStr(this, "startup_mode", "last");
-
-    if ("new".equals(startupMode)) {
-        // 用户要求每次新对话
-        initNewSession();
-    } else {
-        // 默认：恢复最近使用过的会话（按 time 字段判断）
-        int latestIdx = findLatestSessionIndex();
-        if (latestIdx >= 0) {
-            JSONObject last = sessionsJson.optJSONObject(latestIdx);
-            if (last != null) {
-                currentSessionId = UiUtils.optStr(last, "id");
-                currentPromptTokens = last.optInt("prompt_tokens", 0);
-                currentCompletionTokens = last.optInt("completion_tokens", 0);
-                currentCacheHitTokens = last.optInt("cache_hit_tokens", 0);
-                updateTokenStatsUI();
-                JSONArray msgs = readChatFile(currentSessionId);
-                messages = msgs == null ? new JSONArray() : msgs;
+            if (!draftRestored) {
+                String startupMode = UiUtils.getStr(this, "startup_mode", "last");
+                if ("new".equals(startupMode)) {
+                    initNewSession();
+                } else {
+                    int latestIdx = findLatestSessionIndex();
+                    if (latestIdx >= 0) {
+                        JSONObject last = sessionsJson.optJSONObject(latestIdx);
+                        if (last != null) {
+                            currentSessionId = UiUtils.optStr(last, "id");
+                            currentPromptTokens = last.optInt("prompt_tokens", 0);
+                            currentCompletionTokens = last.optInt("completion_tokens", 0);
+                            currentCacheHitTokens = last.optInt("cache_hit_tokens", 0);
+                            updateTokenStatsUI();
+                            JSONArray msgs = readChatFile(currentSessionId);
+                            messages = msgs == null ? new JSONArray() : msgs;
+                        }
+                    }
+                    if (currentSessionId == null || currentSessionId.length() == 0) initNewSession();
+                }
             }
-        }
-        if (currentSessionId == null || currentSessionId.length() == 0) initNewSession();
-    }
-}
             ensureSystemMessage();
             fixDanglingToolCalls();
             renderMessages();
-            if (draftRestored) addStoppedRow("上次生成被中断，已保留已生成的内容");
+            if (draftRestored) addStoppedRow(t("stopped_recover", "上次生成被中断，已保留已生成的内容"));
             applyChatBackground();
             setupListeners();
 
@@ -213,82 +223,125 @@ if (!draftRestored) {
 
             restoreInputDraft();
         } catch (Throwable t) {
-            Toast.makeText(this, "初始化失败: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, t("err_init", "初始化失败: ") + t.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-/** 应用跟 UiOverrides 有关的"外壳"配色：顶栏、输入栏、抽屉、发送按钮 */
-private void applyThemeChrome() {
-    try {
-        int statusH = getSystemBarDimen("status_bar_height");
-
-        // 顶栏：加状态栏高度补丁 + 应用背景（背景透明与否由 chromeAlpha 决定）
-        View menu = findViewById(R.id.btnMenu);
-        if (menu != null && menu.getParent() instanceof View) {
-            View topbar = (View) menu.getParent();
-            try {
-                android.view.ViewGroup.LayoutParams lp = topbar.getLayoutParams();
-                if (lp != null) {
-                    lp.height = UiUtils.dp(this, 54) + statusH;
-                    topbar.setLayoutParams(lp);
-                }
-            } catch (Throwable t) {}
-            topbar.setPadding(topbar.getPaddingLeft(), statusH,
-                              topbar.getPaddingRight(), topbar.getPaddingBottom());
-            topbar.setBackgroundDrawable(UiOverrides.topbarBgDrawable(this));
-        }
-
-        // 底部输入栏：同样应用背景（带 chromeAlpha）
-        View plus = findViewById(R.id.btnPlus);
-        if (plus != null && plus.getParent() instanceof View) {
-            View inputBar = (View) plus.getParent();
-            inputBar.setBackgroundDrawable(UiOverrides.inputBarBgDrawable(this));
-        }
-
-        // 抽屉左侧面板
-        if (layoutDrawer != null && layoutDrawer.getChildCount() > 0) {
-            View panel = layoutDrawer.getChildAt(0);
-            if (panel != null) panel.setBackgroundDrawable(UiOverrides.drawerBgDrawable(this));
-        }
-
-        // 发送按钮
-        if (btnSend != null) {
-            btnSend.setBackgroundDrawable(UiOverrides.sendBtnBgDrawable(this));
-            btnSend.setTextColor(UiOverrides.sendBtnText(this));
-        }
-    } catch (Throwable t) {}
-}
-
-protected void applySystemBars() {
-    try {
-        boolean night = UiUtils.isNight(this);
-        // ★ 显式设置 adjustResize，manifest 里设过但部分机型需要在代码里再设一遍
+    /** 把 XML 中写死的文案替换为当前语言 */
+    private void applyUiTexts() {
         try {
-            getWindow().setSoftInputMode(
-                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-                  | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED);
-        } catch (Throwable t) {}
-
-        if (Build.VERSION.SDK_INT >= 21) {
-            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
-            // ★ 导航栏透明：让聊天背景图透过来，避免底部出现一条突兀的白色带
-            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-            View dv = getWindow().getDecorView();
-            int flags = dv.getSystemUiVisibility();
-            flags |= View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-            // ★ 内容延伸到导航栏下面（导航栏已透明）；键盘弹出仍由 setupKeyboardResize 处理
-            flags |= View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-            flags &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
-            if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            if (Build.VERSION.SDK_INT >= 26) {
-                if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-                else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            // 欢迎语
+            if (layoutWelcome != null && layoutWelcome.getChildCount() >= 3) {
+                View v0 = layoutWelcome.getChildAt(0);
+                if (v0 instanceof TextView) ((TextView) v0).setText(t("main_welcome_title", "你好，我能帮什么忙吗？"));
+                View v1 = layoutWelcome.getChildAt(1);
+                if (v1 instanceof TextView) ((TextView) v1).setText(t("main_welcome_sub1", "可以让我读写文件、联网搜索、处理照片"));
+                View v2 = layoutWelcome.getChildAt(2);
+                if (v2 instanceof TextView) ((TextView) v2).setText(t("main_welcome_sub2", "输入 @ 可以引用本地文件"));
             }
-            dv.setSystemUiVisibility(flags);
-        }
-    } catch (Throwable t) {}
-}
+            if (etInput != null) etInput.setHint(t("main_input_hint", "给 AI Office 发送消息，@ 可引用文件"));
+            if (btnSend != null && !isGenerating) btnSend.setText(t("main_send", "发送"));
+            if (etSessionSearch != null) etSessionSearch.setHint(t("main_search_session", "搜索对话"));
+
+            // 抽屉标题行 + 新建对话 + 提示
+            View btnMore = findViewById(R.id.btnMore);
+            if (btnMore != null && btnMore.getParent() instanceof LinearLayout) {
+                LinearLayout row = (LinearLayout) btnMore.getParent();
+                if (row.getChildCount() >= 1 && row.getChildAt(0) instanceof TextView) {
+                    ((TextView) row.getChildAt(0)).setText(t("main_drawer_title", "对话记录"));
+                }
+            }
+            View btnNewChat = findViewById(R.id.btnNewChat);
+            if (btnNewChat instanceof TextView) ((TextView) btnNewChat).setText(t("main_new_chat", "+ 新建对话"));
+
+            // 抽屉底部提示（在 llHistoryList 的 ScrollView 的兄弟里）
+            View llHist = findViewById(R.id.llHistoryList);
+            if (llHist != null && llHist.getParent() instanceof View) {
+                View sv = (View) llHist.getParent();
+                if (sv.getParent() instanceof LinearLayout) {
+                    LinearLayout panel = (LinearLayout) sv.getParent();
+                    for (int i = 0; i < panel.getChildCount(); i++) {
+                        View child = panel.getChildAt(i);
+                        if (child instanceof TextView && child != btnNewChat && child != etSessionSearch) {
+                            CharSequence cs = ((TextView) child).getText();
+                            if (cs != null && cs.length() > 0) {
+                                String s = cs.toString();
+                                if (s.contains("长按") || s.contains("Tap") || s.contains("long-press")) {
+                                    ((TextView) child).setText(t("main_drawer_hint", "点击切换会话，长按可重命名/删除/导出"));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 移除图片按钮
+            View btnRemoveImage = findViewById(R.id.btnRemoveImage);
+            if (btnRemoveImage instanceof TextView) ((TextView) btnRemoveImage).setText(t("main_remove_image", "移除图片"));
+        } catch (Throwable t) {}
+    }
+
+    private void applyThemeChrome() {
+        try {
+            int statusH = getSystemBarDimen("status_bar_height");
+            View menu = findViewById(R.id.btnMenu);
+            if (menu != null && menu.getParent() instanceof View) {
+                View topbar = (View) menu.getParent();
+                try {
+                    android.view.ViewGroup.LayoutParams lp = topbar.getLayoutParams();
+                    if (lp != null) {
+                        lp.height = UiUtils.dp(this, 54) + statusH;
+                        topbar.setLayoutParams(lp);
+                    }
+                } catch (Throwable t) {}
+                topbar.setPadding(topbar.getPaddingLeft(), statusH,
+                                  topbar.getPaddingRight(), topbar.getPaddingBottom());
+                topbar.setBackgroundDrawable(UiOverrides.topbarBgDrawable(this));
+            }
+            View plus = findViewById(R.id.btnPlus);
+            if (plus != null && plus.getParent() instanceof View) {
+                View inputBar = (View) plus.getParent();
+                inputBar.setBackgroundDrawable(UiOverrides.inputBarBgDrawable(this));
+            }
+            if (layoutDrawer != null && layoutDrawer.getChildCount() > 0) {
+                View panel = layoutDrawer.getChildAt(0);
+                if (panel != null) panel.setBackgroundDrawable(UiOverrides.drawerBgDrawable(this));
+            }
+            if (btnSend != null) {
+                btnSend.setBackgroundDrawable(UiOverrides.sendBtnBgDrawable(this));
+                btnSend.setTextColor(UiOverrides.sendBtnText(this));
+            }
+        } catch (Throwable t) {}
+    }
+
+    @Override
+    protected void applySystemBars() {
+        try {
+            boolean night = UiUtils.isNight(this);
+            try {
+                getWindow().setSoftInputMode(
+                        android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                      | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED);
+            } catch (Throwable t) {}
+
+            if (Build.VERSION.SDK_INT >= 21) {
+                getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+                getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+                View dv = getWindow().getDecorView();
+                int flags = dv.getSystemUiVisibility();
+                flags |= View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+                flags |= View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+                flags &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+                if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                if (Build.VERSION.SDK_INT >= 26) {
+                    if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                    else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                }
+                dv.setSystemUiVisibility(flags);
+            }
+        } catch (Throwable t) {}
+    }
 
     private void applyTopbarIcons() {
         try {
@@ -301,67 +354,61 @@ protected void applySystemBars() {
         } catch (Throwable t) {}
     }
 
-/** 状态栏高度已通过顶栏自身 padding 处理；底部预留导航栏高度，避免输入栏被虚拟按键遮住 */
-private void applyRootInsets() {
-    try {
-        View root = findViewById(R.id.llMainRoot);
-        if (root == null) return;
-        int navH = getSystemBarDimen("navigation_bar_height");
-        root.setPadding(0, 0, 0, navH);
-    } catch (Throwable t) {}
-}
+    private void applyRootInsets() {
+        try {
+            View root = findViewById(R.id.llMainRoot);
+            if (root == null) return;
+            int navH = getSystemBarDimen("navigation_bar_height");
+            root.setPadding(0, 0, 0, navH);
+        } catch (Throwable t) {}
+    }
 
-/** 监听软键盘弹出 / 收起，通过 padding 把界面顶上去（弥补 LAYOUT_FULLSCREEN 导致的 adjustResize 失效） */
-private void setupKeyboardResize() {
-    try {
-        final View root = findViewById(R.id.llMainRoot);
-        if (root == null) return;
-        root.getViewTreeObserver().addOnGlobalLayoutListener(
-                new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-            private int lastKb = 0;
-            @Override public void onGlobalLayout() {
-                try {
-                    android.graphics.Rect r = new android.graphics.Rect();
-                    root.getWindowVisibleDisplayFrame(r);
-                    int screenH = root.getRootView().getHeight();
-                    int visibleBottom = r.bottom;
-                    // 可见区域底部到屏幕底部的差值 = 键盘 + 导航栏
-                    int hidden = screenH - visibleBottom;
-                    // 减去导航栏高度
-                    int navH = getSystemBarDimen("navigation_bar_height");
-                    int kb = hidden - navH;
-if (kb < 100) kb = 0;   // 阈值：< 100px 不算键盘（避免误判）
-if (kb != lastKb) {
-    lastKb = kb;
-    // ★ 键盘收起时（kb=0）底部保留导航栏高度，否则输入栏会被虚拟按键遮住
-    int bottomPad = (kb > 0) ? kb : getSystemBarDimen("navigation_bar_height");
-    root.setPadding(root.getPaddingLeft(),
-                    root.getPaddingTop(),
-                    root.getPaddingRight(),
-                    bottomPad);
-}
-                } catch (Throwable t) {}
-            }
-        });
-    } catch (Throwable t) {}
-}
+    private void setupKeyboardResize() {
+        try {
+            final View root = findViewById(R.id.llMainRoot);
+            if (root == null) return;
+            root.getViewTreeObserver().addOnGlobalLayoutListener(
+                    new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                private int lastKb = 0;
+                @Override public void onGlobalLayout() {
+                    try {
+                        android.graphics.Rect r = new android.graphics.Rect();
+                        root.getWindowVisibleDisplayFrame(r);
+                        int screenH = root.getRootView().getHeight();
+                        int visibleBottom = r.bottom;
+                        int hidden = screenH - visibleBottom;
+                        int navH = getSystemBarDimen("navigation_bar_height");
+                        int kb = hidden - navH;
+                        if (kb < 100) kb = 0;
+                        if (kb != lastKb) {
+                            lastKb = kb;
+                            int bottomPad = (kb > 0) ? kb : getSystemBarDimen("navigation_bar_height");
+                            root.setPadding(root.getPaddingLeft(),
+                                            root.getPaddingTop(),
+                                            root.getPaddingRight(),
+                                            bottomPad);
+                        }
+                    } catch (Throwable t) {}
+                }
+            });
+        } catch (Throwable t) {}
+    }
 
-private void applyDrawerInsets() {
-    try {
-        View drawer = findViewById(R.id.layoutDrawer);
-        if (!(drawer instanceof android.view.ViewGroup)) return;
-        android.view.ViewGroup vg = (android.view.ViewGroup) drawer;
-        if (vg.getChildCount() == 0) return;
-        View panel = vg.getChildAt(0);
-        if (panel == null) return;
-        int top = getSystemBarDimen("status_bar_height");
-        // 底部导航栏已不透明，不再需要底部 padding
-        panel.setPadding(panel.getPaddingLeft(),
-                         panel.getPaddingTop() + top,
-                         panel.getPaddingRight(),
-                         panel.getPaddingBottom());
-    } catch (Throwable t) {}
-}
+    private void applyDrawerInsets() {
+        try {
+            View drawer = findViewById(R.id.layoutDrawer);
+            if (!(drawer instanceof android.view.ViewGroup)) return;
+            android.view.ViewGroup vg = (android.view.ViewGroup) drawer;
+            if (vg.getChildCount() == 0) return;
+            View panel = vg.getChildAt(0);
+            if (panel == null) return;
+            int top = getSystemBarDimen("status_bar_height");
+            panel.setPadding(panel.getPaddingLeft(),
+                             panel.getPaddingTop() + top,
+                             panel.getPaddingRight(),
+                             panel.getPaddingBottom());
+        } catch (Throwable t) {}
+    }
 
     private int getSystemBarDimen(String name) {
         try {
@@ -380,6 +427,7 @@ private void applyDrawerInsets() {
         try { updateModelLabel(); } catch (Throwable t) {}
         try { applyChatBackground(); } catch (Throwable t) {}
         try { applyThemeChrome(); } catch (Throwable t) {}
+        try { applyUiTexts(); } catch (Throwable t) {}
     }
 
     private void refreshTools() {
@@ -445,7 +493,7 @@ private void applyDrawerInsets() {
         findViewById(R.id.btnNewChat).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 if (!guardClick()) return;
-                if (isGenerating) { UiUtils.toast(MainActivity.this, "正在生成中，请先停止"); return; }
+                if (isGenerating) { toast("main_generating_please_stop", "正在生成中，请先停止"); return; }
                 saveCurrentSession(); initNewSession(); hideDrawer();
             }
         });
@@ -606,22 +654,22 @@ private void applyDrawerInsets() {
             final String[] models = modelPresets();
             if (models.length <= 1) return;
             new AlertDialog.Builder(this)
-                    .setTitle("选择模型")
+                    .setTitle(t("model_picker_title", "选择模型"))
                     .setItems(models, new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) {
                             switchModel(models[which]);
                             d.dismiss();
                         }
                     })
-                    .setNeutralButton("去设置里编辑", new DialogInterface.OnClickListener() {
+                    .setNeutralButton(t("model_picker_go_settings", "去设置里编辑"), new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) {
                             startActivity(new Intent(MainActivity.this, SettingsActivity.class));
                             d.dismiss();
                         }
                     })
-                    .setNegativeButton("取消", null).create().show();
+                    .setNegativeButton(t("common_cancel", "取消"), null).create().show();
         } catch (Throwable t) {
-            UiUtils.toast(this, "无法打开模型列表");
+            toast("model_no_picker", "无法打开模型列表");
         }
     }
 
@@ -631,7 +679,9 @@ private void applyDrawerInsets() {
             UiUtils.prefs(this).edit().putString("model", model.trim()).apply();
             if (aiClient != null) aiClient.setModel(model.trim());
             updateModelLabel();
-            UiUtils.toast(this, "已切换到 " + model.trim());
+            toast("model_switched", "已切换到 ") ;
+            // 用更完整的拼接
+            Toast.makeText(this, t("model_switched", "已切换到 ") + model.trim(), Toast.LENGTH_SHORT).show();
         } catch (Throwable t) {}
     }
 
@@ -665,7 +715,7 @@ private void applyDrawerInsets() {
                             (android.media.projection.MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
                     startActivityForResult(mpm.createScreenCaptureIntent(), REQ_PROJECTION);
                 } catch (Throwable t) {
-                    UiUtils.toast(MainActivity.this, "无法发起截屏授权: " + t.getMessage());
+                    Toast.makeText(MainActivity.this, "无法发起截屏授权: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }});
         } catch (Throwable t) {}
@@ -676,7 +726,7 @@ private void applyDrawerInsets() {
             Intent it = new Intent("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION");
             it.setData(Uri.parse("package:" + getPackageName()));
             try { startActivity(it); } catch (Throwable t) { startActivity(new Intent("android.settings.MANAGE_ALL_FILES_ACCESS_PERMISSION")); }
-        } catch (Throwable t) { UiUtils.toast(this, "无法打开权限设置页"); }
+        } catch (Throwable t) { toast("permission_no_all_files", "无法打开权限设置页"); }
     }
 
     private boolean hasAllFilesAccess() {
@@ -799,23 +849,22 @@ private void applyDrawerInsets() {
         }
     }
 
-/** 按 time 字段找最近一次使用的会话的 index；找不到返回 -1 */
-private int findLatestSessionIndex() {
-    try {
-        int bestIdx = -1;
-        long bestTime = -1;
-        for (int i = 0; i < sessionsJson.length(); i++) {
-            JSONObject s = sessionsJson.optJSONObject(i);
-            if (s == null) continue;
-            long t = s.optLong("time", 0);
-            if (t > bestTime) {
-                bestTime = t;
-                bestIdx = i;
+    private int findLatestSessionIndex() {
+        try {
+            int bestIdx = -1;
+            long bestTime = -1;
+            for (int i = 0; i < sessionsJson.length(); i++) {
+                JSONObject s = sessionsJson.optJSONObject(i);
+                if (s == null) continue;
+                long t = s.optLong("time", 0);
+                if (t > bestTime) {
+                    bestTime = t;
+                    bestIdx = i;
+                }
             }
-        }
-        return bestIdx;
-    } catch (Throwable t) { return -1; }
-}
+            return bestIdx;
+        } catch (Throwable t) { return -1; }
+    }
 
     private void persistSessionIndex() {
         try {
@@ -914,11 +963,11 @@ private int findLatestSessionIndex() {
                 if (m != null && "user".equals(UiUtils.optStr(m, "role"))) {
                     String t = UiUtils.contentToText(m, true).replace('\n', ' ').trim();
                     if (t.length() > 14) t = t.substring(0, 14) + "…";
-                    return t.length() == 0 ? "新对话" : t;
+                    return t.length() == 0 ? t("session_new_chat", "新对话") : t;
                 }
             }
         } catch (Throwable t) {}
-        return "新对话";
+        return t("session_new_chat", "新对话");
     }
 
     private int countTurns() {
@@ -993,16 +1042,20 @@ private int findLatestSessionIndex() {
 
     private void updateTokenStatsUI() {
         if (tvTokenStats != null) {
-            String stats = "输入: " + currentPromptTokens + " | 输出: " + currentCompletionTokens;
-            if (currentPromptTokens > 0) stats += " | 缓存命中: " + String.format("%.1f", (float) currentCacheHitTokens / currentPromptTokens * 100f) + "%";
-            else stats += " | 缓存命中: 0%";
-            stats += " | 轮次: " + countTurns();
+            String input = t("stats_input", "输入");
+            String output = t("stats_output", "输出");
+            String cache = t("stats_cache", "缓存命中");
+            String turns = t("stats_turns", "轮次");
+            String stats = input + ": " + currentPromptTokens + " | " + output + ": " + currentCompletionTokens;
+            if (currentPromptTokens > 0) stats += " | " + cache + ": " + String.format("%.1f", (float) currentCacheHitTokens / currentPromptTokens * 100f) + "%";
+            else stats += " | " + cache + ": 0%";
+            stats += " | " + turns + ": " + countTurns();
             tvTokenStats.setText(stats);
         }
     }
 
     // ============================================================
-    // 抽屉：历史记录
+    // 抽屉
     // ============================================================
 
     private void refreshHistoryList() {
@@ -1015,7 +1068,7 @@ private int findLatestSessionIndex() {
             JSONObject s = sessionsJson.optJSONObject(i);
             if (s == null) continue;
             String title = UiUtils.optStr(s, "title");
-            if (title.length() == 0) title = "对话";
+            if (title.length() == 0) title = t("session_default_title", "对话");
             if (sessionFilter.length() > 0 && !title.toLowerCase().contains(sessionFilter)) continue;
 
             boolean isCurrent = currentSessionId.equals(UiUtils.optStr(s, "id"));
@@ -1053,7 +1106,9 @@ private int findLatestSessionIndex() {
 
         if (shown == 0) {
             TextView empty = new TextView(this);
-            empty.setText(sessionFilter.length() > 0 ? "没有匹配的对话" : "暂无历史对话");
+            empty.setText(sessionFilter.length() > 0
+                    ? t("main_no_match_sessions", "没有匹配的对话")
+                    : t("main_no_sessions", "暂无历史对话"));
             empty.setTextSize(13);
             empty.setTextColor(UiUtils.color(this, R.color.md_outline));
             empty.setPadding(UiUtils.dp(this, 10), UiUtils.dp(this, 24),
@@ -1065,7 +1120,12 @@ private int findLatestSessionIndex() {
     private void showSessionMenu(final int index) {
         final JSONObject s = sessionsJson.optJSONObject(index);
         if (s == null) return;
-        final String[] items = new String[]{"切换到这个对话", "重命名", "导出为 Markdown", "分享全文", "删除"};
+        final String[] items = new String[]{
+                t("session_menu_switch", "切换到这个对话"),
+                t("session_menu_rename", "重命名"),
+                t("session_menu_export", "导出为 Markdown"),
+                t("session_menu_share", "分享全文"),
+                t("session_menu_delete", "删除")};
         new AlertDialog.Builder(this)
                 .setTitle(UiUtils.optStr(s, "title"))
                 .setItems(items, new DialogInterface.OnClickListener() {
@@ -1078,7 +1138,7 @@ private int findLatestSessionIndex() {
                         else if (which == 4) confirmDeleteSession(index);
                     }
                 })
-                .setNegativeButton("取消", null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     private void renameSession(final int index) {
@@ -1090,25 +1150,25 @@ private int findLatestSessionIndex() {
         et.setTextSize(15);
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10), UiUtils.dp(this, 12), UiUtils.dp(this, 10));
         new AlertDialog.Builder(this)
-                .setTitle("重命名对话")
+                .setTitle(t("session_rename_title", "重命名对话"))
                 .setView(et)
-                .setPositiveButton("保存", new DialogInterface.OnClickListener() {
+                .setPositiveButton(t("common_save", "保存"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         try {
-                            String t = et.getText().toString().trim();
-                            if (t.length() == 0) t = "对话";
-                            s.put("title", t);
+                            String t2 = et.getText().toString().trim();
+                            if (t2.length() == 0) t2 = t("session_default_title", "对话");
+                            s.put("title", t2);
                             persistSessionIndex();
                             refreshHistoryList();
                         } catch (Throwable ex) {}
                         d.dismiss();
                     }
                 })
-                .setNegativeButton("取消", null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     private void switchSession(int index) {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中，请先停止"); return; }
+        if (isGenerating) { toast("main_generating_please_stop", "正在生成中，请先停止"); return; }
         saveCurrentSession();
         final JSONObject s = sessionsJson.optJSONObject(index);
         if (s == null) return;
@@ -1127,7 +1187,7 @@ private int findLatestSessionIndex() {
         if (llMessages != null) {
             llMessages.removeAllViews();
             TextView loading = new TextView(this);
-            loading.setText("加载中…");
+            loading.setText(t("session_loading", "加载中…"));
             loading.setTextSize(13);
             loading.setTextColor(UiUtils.color(this, R.color.md_outline));
             loading.setGravity(Gravity.CENTER);
@@ -1184,7 +1244,7 @@ private int findLatestSessionIndex() {
                 } catch (Throwable t) { bmp = null; }
                 if (bmp == null) {
                     UiUtils.prefs(this).edit().remove("chat_bg_path").commit();
-                    UiUtils.toast(this, "聊天背景图已失效，请到设置里重新选择");
+                    toast("ref_image_invalid", "聊天背景图已失效，请到设置里重新选择");
                     target.setBackgroundDrawable(null);
                     return;
                 }
@@ -1216,8 +1276,8 @@ private int findLatestSessionIndex() {
     }
 
     private void confirmDeleteSession(final int index) {
-        new AlertDialog.Builder(this).setTitle("删除这条对话记录？")
-            .setPositiveButton("删除", new DialogInterface.OnClickListener() {
+        new AlertDialog.Builder(this).setTitle(t("session_delete_confirm", "删除这条对话记录？"))
+            .setPositiveButton(t("common_delete", "删除"), new DialogInterface.OnClickListener() {
                 @Override public void onClick(DialogInterface d, int which) {
                     try {
                         JSONObject s = sessionsJson.optJSONObject(index);
@@ -1237,7 +1297,7 @@ private int findLatestSessionIndex() {
                     } catch (Throwable t) {}
                     d.dismiss();
                 }
-            }).setNegativeButton("取消", null).create().show();
+            }).setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     // ============================================================
@@ -1246,7 +1306,7 @@ private int findLatestSessionIndex() {
 
     private String messagesToMarkdown(JSONArray msgs, String title) {
         StringBuilder sb = new StringBuilder();
-        sb.append("# ").append(title == null ? "对话" : title).append("\n\n");
+        sb.append("# ").append(title == null ? t("session_default_title", "对话") : title).append("\n\n");
         try {
             for (int i = 0; i < msgs.length(); i++) {
                 JSONObject m = msgs.optJSONObject(i);
@@ -1254,32 +1314,33 @@ private int findLatestSessionIndex() {
                 String role = UiUtils.optStr(m, "role");
                 if ("system".equals(role)) continue;
                 if ("user".equals(role)) {
-                    sb.append("## 我\n\n").append(UiUtils.contentToText(m, true)).append("\n\n");
+                    sb.append("## ").append(t("md_role_me", "我")).append("\n\n")
+                      .append(UiUtils.contentToText(m, true)).append("\n\n");
                 } else if ("assistant".equals(role)) {
                     String r = UiUtils.optStr(m, "reasoning_content");
                     if (r.length() > 0) {
-                        sb.append("<details><summary>思考过程</summary>\n\n")
+                        sb.append("<details><summary>").append(t("md_reasoning", "思考过程")).append("</summary>\n\n")
                           .append(r.replace("\n", "\n> ")).append("\n\n</details>\n\n");
                     }
                     String c = UiUtils.contentToText(m, true);
-                    if (c.length() > 0) sb.append("## AI Office\n\n").append(c).append("\n\n");
+                    if (c.length() > 0) sb.append("## ").append(t("md_role_ai", "AI Office")).append("\n\n").append(c).append("\n\n");
                 } else if ("tool".equals(role)) {
                     String content = UiUtils.optStr(m, "content");
                     if (content.length() > 4000) content = content.substring(0, 4000) + "\n...(已截断)";
                     String fence = content.contains("```") ? "~~~" : "```";
-                    sb.append("<details><summary>工具结果</summary>\n\n").append(fence).append("\n")
-                      .append(content).append("\n").append(fence).append("\n\n</details>\n\n");
+                    sb.append("<details><summary>").append(t("md_tool_result", "工具结果")).append("</summary>\n\n")
+                      .append(fence).append("\n").append(content).append("\n").append(fence).append("\n\n</details>\n\n");
                 }
             }
         } catch (Throwable t) {
-            sb.append("## 对话内容\n\n");
+            sb.append("## ").append(t("md_role_chat", "对话内容")).append("\n\n");
             for (int i = 0; i < msgs.length(); i++) {
                 JSONObject m = msgs.optJSONObject(i);
                 if (m == null) continue;
                 String role = UiUtils.optStr(m, "role");
                 if ("system".equals(role)) continue;
-                if ("user".equals(role)) sb.append("### 用户\n").append(UiUtils.contentToText(m, true)).append("\n\n");
-                else if ("assistant".equals(role)) sb.append("### AI\n").append(UiUtils.contentToText(m, true)).append("\n\n");
+                if ("user".equals(role)) sb.append("### ").append(t("md_role_user_short", "用户")).append("\n").append(UiUtils.contentToText(m, true)).append("\n\n");
+                else if ("assistant".equals(role)) sb.append("### ").append(t("md_role_ai_short", "AI")).append("\n").append(UiUtils.contentToText(m, true)).append("\n\n");
             }
         }
         return sb.toString();
@@ -1293,7 +1354,7 @@ private int findLatestSessionIndex() {
         JSONObject s = sessionsJson.optJSONObject(index);
         if (s == null) return;
         JSONArray msgs = readChatFile(UiUtils.optStr(s, "id"));
-        if (msgs == null) { UiUtils.toast(this, "读取会话内容失败"); return; }
+        if (msgs == null) { toast("err_import_read", "读取会话内容失败"); return; }
         saveAndOfferShare(messagesToMarkdown(msgs, UiUtils.optStr(s, "title")));
     }
 
@@ -1301,12 +1362,12 @@ private int findLatestSessionIndex() {
         JSONObject s = sessionsJson.optJSONObject(index);
         if (s == null) return;
         JSONArray msgs = readChatFile(UiUtils.optStr(s, "id"));
-        if (msgs == null) { UiUtils.toast(this, "读取会话内容失败"); return; }
+        if (msgs == null) { toast("err_import_read", "读取会话内容失败"); return; }
         shareText(messagesToMarkdown(msgs, UiUtils.optStr(s, "title")));
     }
 
     private void saveAndOfferShare(final String md) {
-        if (md == null || md.trim().length() == 0) { UiUtils.toast(this, "没有可导出的内容"); return; }
+        if (md == null || md.trim().length() == 0) { toast("no_export_content", "没有可导出的内容"); return; }
         try {
             File dir = new File(Environment.getExternalStorageDirectory(), "AI/exports");
             if (!dir.exists()) dir.mkdirs();
@@ -1315,28 +1376,28 @@ private int findLatestSessionIndex() {
             fos.write(md.getBytes("UTF-8"));
             fos.close();
             new AlertDialog.Builder(this)
-                    .setTitle("已导出")
+                    .setTitle(t("export_done", "已导出"))
                     .setMessage(f.getAbsolutePath())
-                    .setPositiveButton("分享", new DialogInterface.OnClickListener() {
+                    .setPositiveButton(t("common_share", "分享"), new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) { shareText(md); d.dismiss(); }
                     })
-                    .setNegativeButton("知道了", null).create().show();
+                    .setNegativeButton(t("common_know", "知道了"), null).create().show();
         } catch (Throwable t) {
-            UiUtils.toast(this, "导出失败: " + t.getMessage());
+            Toast.makeText(this, t("export_fail", "导出失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
     private void shareText(String text) {
-        if (text == null || text.trim().length() == 0) { UiUtils.toast(this, "没有可分享的内容"); return; }
+        if (text == null || text.trim().length() == 0) { toast("no_share_content", "没有可分享的内容"); return; }
         try {
             Intent it = new Intent(Intent.ACTION_SEND);
             it.setType("text/plain");
             it.putExtra(Intent.EXTRA_SUBJECT, sessionTitle());
             it.putExtra(Intent.EXTRA_TEXT, text);
             it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(Intent.createChooser(it, "分享到"));
+            startActivity(Intent.createChooser(it, t("share_to", "分享到")));
         } catch (Throwable t) {
-            UiUtils.toast(this, "分享失败: " + t.getMessage());
+            Toast.makeText(this, t("share_fail", "分享失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1365,12 +1426,12 @@ private int findLatestSessionIndex() {
                         + "，图上叠加了 10% 网格线与边缘像素刻度，请尽量按刻度读坐标（不要凭比例目测）。";
             } catch (Throwable t) {}
             JSONArray arr = new JSONArray();
-            JSONObject t = new JSONObject();
-            t.put("type", "text");
-            t.put("text", "【系统自动附图】这是当前屏幕截图。" + sizeInfo
+            JSONObject t2 = new JSONObject();
+            t2.put("type", "text");
+            t2.put("text", "【系统自动附图】这是当前屏幕截图。" + sizeInfo
                     + "请分析界面并决定下一步：tap/long_press/swipe（坐标直接用截图上的像素坐标并传 from_vision=true，"
                     + "App 会自动换算成屏幕坐标）、input（输入文字）、click_text（点已知文字）或 launch_app。");
-            arr.put(t);
+            arr.put(t2);
             JSONObject im = new JSONObject();
             im.put("type", "image_url");
             JSONObject u = new JSONObject();
@@ -1396,7 +1457,6 @@ private int findLatestSessionIndex() {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, UiUtils.dp(this, 6), 0, UiUtils.dp(this, 6));
         box.setLayoutParams(lp);
-        // AI 消息背景：仅当有覆盖色时才应用
         try {
             android.graphics.drawable.Drawable bg = UiOverrides.bubbleAiBgDrawable(this);
             if (bg != null) {
@@ -1419,7 +1479,12 @@ private int findLatestSessionIndex() {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         rlp.setMargins(0, UiUtils.dp(this, 2), 0, UiUtils.dp(this, 4));
         row.setLayoutParams(rlp);
-        String[] labels = new String[]{"↩ 引用追问", "▶ 朗读", "⧉ 复制", "↻ 重新生成", "⋯ 更多"};
+        String[] labels = new String[]{
+                t("action_row_quote", "↩ 引用追问"),
+                t("action_row_speak", "▶ 朗读"),
+                t("action_row_copy", "⧉ 复制"),
+                t("action_row_regen", "↻ 重新生成"),
+                t("action_row_more", "⋯ 更多")};
         for (int i = 0; i < labels.length; i++) {
             final int which = i;
             TextView b = new TextView(this);
@@ -1438,7 +1503,7 @@ private int findLatestSessionIndex() {
                     JSONObject m = (msgIndex >= 0 && msgIndex < messages.length()) ? messages.optJSONObject(msgIndex) : null;
                     if (m != null) MarkdownView.copyText(MainActivity.this, UiUtils.contentToText(m, true));
                 }
-                else if (which == 3) { if (!isGenerating) regenerateFrom(msgIndex); else UiUtils.toast(MainActivity.this, "正在生成中"); }
+                else if (which == 3) { if (!isGenerating) regenerateFrom(msgIndex); else toast("generating_short", "正在生成中"); }
                 else if (which == 4) showAiMenu(msgIndex);
             }});
             row.addView(b);
@@ -1476,13 +1541,13 @@ private int findLatestSessionIndex() {
             JSONObject m = messages.optJSONObject(msgIndex);
             if (m == null) return;
             final String text = UiUtils.contentToText(m, true);
-            if (text == null || text.trim().length() == 0) { UiUtils.toast(this, "这条回复没有可朗读的内容"); return; }
-            if (TtsHelper.isSpeaking()) { TtsHelper.stop(); UiUtils.toast(this, "已停止朗读"); return; }
+            if (text == null || text.trim().length() == 0) { toast("tts_no_content", "这条回复没有可朗读的内容"); return; }
+            if (TtsHelper.isSpeaking()) { TtsHelper.stop(); toast("tts_stopped", "已停止朗读"); return; }
             if (!TtsHelper.isEnabled(this)) {
                 new AlertDialog.Builder(this)
-                        .setTitle("TTS 未启用")
-                        .setMessage("请先在「设置 → 语音合成」里开启 TTS 朗读。\n\n未设置 API 地址时会自动使用系统 TTS。")
-                        .setPositiveButton("去开启", new DialogInterface.OnClickListener() {
+                        .setTitle(t("tts_not_enabled_title", "TTS 未启用"))
+                        .setMessage(t("tts_not_enabled_msg", "请先在「设置 → 语音合成」里开启 TTS 朗读。\n\n未设置 API 地址时会自动使用系统 TTS。"))
+                        .setPositiveButton(t("tts_go_enable", "去开启"), new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int w) {
                                 try {
                                     Intent it = new Intent(MainActivity.this, SettingsDetailActivity.class);
@@ -1492,17 +1557,17 @@ private int findLatestSessionIndex() {
                                 d.dismiss();
                             }
                         })
-                        .setNegativeButton("取消", null)
+                        .setNegativeButton(t("common_cancel", "取消"), null)
                         .create().show();
                 return;
             }
-            UiUtils.toast(this, "开始朗读…");
+            Toast.makeText(this, t("tts_start", "开始朗读…"), Toast.LENGTH_SHORT).show();
             TtsHelper.speak(this, text, new TtsHelper.TtsCallback() {
                 @Override public void onStart() {}
                 @Override public void onSuccess() {}
                 @Override public void onError(final String message) {
                     ui.post(new Runnable() { @Override public void run() {
-                        UiUtils.toast(MainActivity.this, "朗读失败: " + message);
+                        Toast.makeText(MainActivity.this, t("tts_fail", "朗读失败: ") + message, Toast.LENGTH_SHORT).show();
                     }});
                 }
             });
@@ -1515,14 +1580,15 @@ private int findLatestSessionIndex() {
             JSONObject m = messages.optJSONObject(msgIndex);
             if (m == null) return;
             String c = UiUtils.contentToText(m, true);
-            if (c.trim().length() == 0) { UiUtils.toast(this, "这条回复没有文字内容"); return; }
+            if (c.trim().length() == 0) { toast("quote_no_text", "这条回复没有文字内容"); return; }
             if (c.length() > 2000) c = c.substring(0, 2000) + "…";
             quoteIndex = msgIndex;
             quoteText = c;
             if (tvQuoteText != null) {
                 String prev = c.replace('\n', ' ');
                 if (prev.length() > 60) prev = prev.substring(0, 60) + "…";
-                tvQuoteText.setText("↩ 引用 #" + msgIndex + "：" + prev);
+                String prefix = t("quote_prefix", "↩ 引用 #%d：").replace("%d", String.valueOf(msgIndex));
+                tvQuoteText.setText(prefix + prev);
             }
             if (llQuoteBar != null) llQuoteBar.setVisibility(View.VISIBLE);
             if (etInput != null) etInput.requestFocus();
@@ -1649,10 +1715,10 @@ private int findLatestSessionIndex() {
         if (m == null) return;
         boolean hasImg = UiUtils.extractImageUrls(m).size() > 0;
         List<String> items = new ArrayList<String>();
-        items.add("修改并重新发送");
-        items.add("复制文字");
-        if (hasImg) items.add("查看图片");
-        items.add("删除这条及之后");
+        items.add(t("msg_menu_edit", "修改并重新发送"));
+        items.add(t("msg_menu_copy", "复制文字"));
+        if (hasImg) items.add(t("msg_menu_view_image", "查看图片"));
+        items.add(t("msg_menu_delete", "删除这条及之后"));
         final List<JSONObject> uiPlugins;
         try {
             uiPlugins = PluginManager.getUiPluginsByExtension(this, PluginManager.EXT_MESSAGE_LONG_PRESS);
@@ -1665,22 +1731,22 @@ private int findLatestSessionIndex() {
         }
         final List<String> fItems = items;
         new AlertDialog.Builder(this)
-                .setTitle("这条消息")
+                .setTitle(t("msg_menu_title", "这条消息"))
                 .setItems(fItems.toArray(new String[0]), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         String it = fItems.get(which);
-                        if ("修改并重新发送".equals(it)) showEditDialog(index);
-                        else if ("复制文字".equals(it)) {
+                        if (t("msg_menu_edit", "修改并重新发送").equals(it)) showEditDialog(index);
+                        else if (t("msg_menu_copy", "复制文字").equals(it)) {
                             JSONObject mm = messages.optJSONObject(index);
                             if (mm != null) MarkdownView.copyText(MainActivity.this, UiUtils.contentToText(mm, false));
                         }
-                        else if ("查看图片".equals(it)) {
+                        else if (t("msg_menu_view_image", "查看图片").equals(it)) {
                             JSONObject mm = messages.optJSONObject(index);
                             List<String> us = mm == null ? new ArrayList<String>() : UiUtils.extractImageUrls(mm);
                             if (!us.isEmpty()) showImageDialog(us.get(0));
                         }
-                        else if ("删除这条及之后".equals(it)) confirmDeleteFrom(index);
+                        else if (t("msg_menu_delete", "删除这条及之后").equals(it)) confirmDeleteFrom(index);
                         else if (it != null) {
                             for (int k = 0; k < uiPlugins.size(); k++) {
                                 JSONObject p = uiPlugins.get(k);
@@ -1697,12 +1763,12 @@ private int findLatestSessionIndex() {
                         }
                     }
                 })
-                .setNegativeButton("取消", null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     private void confirmDeleteFrom(final int index) {
-        new AlertDialog.Builder(this).setTitle("删除这条消息及其之后的所有内容？")
-            .setPositiveButton("删除", new DialogInterface.OnClickListener() {
+        new AlertDialog.Builder(this).setTitle(t("msg_delete_confirm", "删除这条消息及其之后的所有内容？"))
+            .setPositiveButton(t("common_delete", "删除"), new DialogInterface.OnClickListener() {
                 @Override public void onClick(DialogInterface d, int which) {
                     d.dismiss();
                     try {
@@ -1711,7 +1777,7 @@ private int findLatestSessionIndex() {
                         resetRound(); renderMessages(); saveCurrentSession();
                     } catch (Throwable t) {}
                 }
-            }).setNegativeButton("取消", null).create().show();
+            }).setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     private void showImageDialog(final String url) {
@@ -1724,7 +1790,7 @@ private int findLatestSessionIndex() {
         iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
         wrap.addView(iv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
         TextView tip = new TextView(this);
-        tip.setText("点击任意处关闭 · 长按图片保存到 AI/exports");
+        tip.setText(t("image_dialog_hint", "点击任意处关闭 · 长按图片保存到 AI/exports"));
         tip.setTextSize(12); tip.setTextColor(0xAAFFFFFF); tip.setGravity(Gravity.CENTER);
         tip.setPadding(0, UiUtils.dp(this, 8), 0, 0);
         wrap.addView(tip);
@@ -1777,16 +1843,16 @@ private int findLatestSessionIndex() {
                     bm = BitmapFactory.decodeByteArray(data, 0, data.length);
                 }
             }
-            if (bm == null) { UiUtils.toast(this, "图片解码失败"); return; }
+            if (bm == null) { toast("image_decode_fail", "图片解码失败"); return; }
             File dir = new File(Environment.getExternalStorageDirectory(), "AI/exports");
             if (!dir.exists()) dir.mkdirs();
             File f = new File(dir, "img_" + System.currentTimeMillis() + ".jpg");
             FileOutputStream fo = new FileOutputStream(f);
             bm.compress(Bitmap.CompressFormat.JPEG, 92, fo);
             fo.close();
-            UiUtils.toast(this, "已保存: " + f.getAbsolutePath());
+            Toast.makeText(this, t("image_saved", "已保存: ") + f.getAbsolutePath(), Toast.LENGTH_SHORT).show();
         } catch (Throwable t) {
-            UiUtils.toast(this, "保存失败: " + t.getMessage());
+            Toast.makeText(this, t("image_save_fail", "保存失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1808,7 +1874,10 @@ private int findLatestSessionIndex() {
         panel.setPadding(UiUtils.dp(this, 10), UiUtils.dp(this, 8), UiUtils.dp(this, 10), UiUtils.dp(this, 10));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, UiUtils.dp(this, 2), 0, UiUtils.dp(this, 6)); panel.setLayoutParams(lp);
-        TextView header = new TextView(this); header.setText(seconds > 0 ? ("已深度思考（" + seconds + " 秒）") : "已深度思考");
+        String headerText = seconds > 0
+                ? t("reasoning_done_sec", "已深度思考（%d 秒）").replace("%d", String.valueOf(seconds))
+                : t("reasoning_done", "已深度思考");
+        TextView header = new TextView(this); header.setText(headerText);
         header.setTextSize(12); header.setTextColor(UiOverrides.outline(this));
         final TextView content = new TextView(this); content.setText(text); content.setTextSize(13); content.setLineSpacing(UiUtils.dp(this, 3), 1f);
         content.setTextColor(UiOverrides.bubbleAiText(this)); content.setTextIsSelectable(true); content.setPadding(0, UiUtils.dp(this, 6), 0, 0); content.setVisibility(View.GONE);
@@ -1823,19 +1892,27 @@ private int findLatestSessionIndex() {
         panel.setPadding(UiUtils.dp(this, 10), UiUtils.dp(this, 8), UiUtils.dp(this, 10), UiUtils.dp(this, 10));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, UiUtils.dp(this, 2), 0, UiUtils.dp(this, 6)); panel.setLayoutParams(lp);
-        final TextView header = new TextView(this); header.setText("调用工具 " + toolName); header.setTextSize(12); header.setTextColor(UiOverrides.outline(this));
+        final String callPrefix = t("tool_panel_call", "调用工具 ");
+        final String resultPrefix = t("tool_panel_result", "工具结果 ");
+        final String collapseSuffix = t("tool_panel_collapse", "（点击收起）");
+        final TextView header = new TextView(this); header.setText(callPrefix + toolName);
+        header.setTextSize(12); header.setTextColor(UiOverrides.outline(this));
         final TextView content = new TextView(this); content.setText(body == null ? "" : body); content.setTextSize(12); content.setTypeface(Typeface.MONOSPACE);
         content.setTextColor(UiOverrides.codeText(this)); content.setTextIsSelectable(true); content.setPadding(0, UiUtils.dp(this, 6), 0, 0); content.setVisibility(View.GONE);
         header.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                boolean show = content.getVisibility() == View.GONE; content.setVisibility(show ? View.VISIBLE : View.GONE);
-                String t = header.getText().toString();
-                if (show) { if (t.startsWith("调用工具")) header.setText(t.replace("调用工具", "工具结果")); }
-                else { if (t.startsWith("工具结果")) header.setText(t.replace("工具结果", "调用工具")); }
+                boolean show = content.getVisibility() == View.GONE;
+                content.setVisibility(show ? View.VISIBLE : View.GONE);
+                String cur = header.getText().toString();
+                if (show) {
+                    if (cur.startsWith(callPrefix)) header.setText(cur.replace(callPrefix, resultPrefix));
+                } else {
+                    if (cur.startsWith(resultPrefix)) header.setText(cur.replace(resultPrefix, callPrefix));
+                }
             }
         });
         panel.addView(header); panel.addView(content); container.addView(panel);
-        if (showBody) { content.setVisibility(View.VISIBLE); header.setText("工具结果 " + toolName + "（点击收起）"); }
+        if (showBody) { content.setVisibility(View.VISIBLE); header.setText(resultPrefix + toolName + collapseSuffix); }
     }
 
     private void addSystemNote(String msg) {
@@ -1844,7 +1921,7 @@ private int findLatestSessionIndex() {
     }
 
     private void showAiMenu(final int assistantIndex) {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中，请先停止"); return; }
+        if (isGenerating) { toast("main_generating_please_stop", "正在生成中，请先停止"); return; }
         if (assistantIndex < 0 || assistantIndex >= messages.length()) return;
         JSONObject m = messages.optJSONObject(assistantIndex);
         if (m == null) return;
@@ -1853,18 +1930,26 @@ private int findLatestSessionIndex() {
         final boolean hasText = full.trim().length() > 0;
 
         String[] items;
-        if (hasText) items = new String[]{"复制这条回复", "复制思考过程", "分享这条回复", "从这里重新生成", "删除这一轮"};
-        else items = new String[]{"复制思考过程", "从这里重新生成", "删除这一轮"};
+        if (hasText) items = new String[]{
+                t("ai_menu_copy_reply", "复制这条回复"),
+                t("ai_menu_copy_reasoning", "复制思考过程"),
+                t("ai_menu_share", "分享这条回复"),
+                t("ai_menu_regen", "从这里重新生成"),
+                t("ai_menu_delete_round", "删除这一轮")};
+        else items = new String[]{
+                t("ai_menu_copy_reasoning", "复制思考过程"),
+                t("ai_menu_regen", "从这里重新生成"),
+                t("ai_menu_delete_round", "删除这一轮")};
 
         new AlertDialog.Builder(this)
-                .setTitle("这条回复")
+                .setTitle(t("ai_menu_title", "这条回复"))
                 .setItems(items, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         handleAiMenu(assistantIndex, full, reasoning, which, hasText);
                     }
                 })
-                .setNegativeButton("取消", null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     private void handleAiMenu(int idx, String full, String reasoning, int which, boolean hasText) {
@@ -1882,7 +1967,7 @@ private int findLatestSessionIndex() {
     }
 
     private void copyReasoning(String reasoning) {
-        if (reasoning == null || reasoning.trim().length() == 0) { UiUtils.toast(this, "这条回复没有思考过程"); return; }
+        if (reasoning == null || reasoning.trim().length() == 0) { toast("no_reasoning", "这条回复没有思考过程"); return; }
         MarkdownView.copyText(this, reasoning);
     }
 
@@ -1903,7 +1988,7 @@ private int findLatestSessionIndex() {
             while (messages.length() > turnStart) messages.remove(messages.length() - 1);
             removeStoppedRow();
             resetRound(); renderMessages();
-            if (messages.length() <= 1) { UiUtils.toast(this, "没有可用的上下文"); return; }
+            if (messages.length() <= 1) { toast("no_context", "没有可用的上下文"); return; }
             startAgent();
         } catch (Throwable t) {}
     }
@@ -1914,7 +1999,7 @@ private int findLatestSessionIndex() {
             while (messages.length() > turnStart) messages.remove(messages.length() - 1);
             removeStoppedRow();
             resetRound(); renderMessages(); saveCurrentSession();
-            UiUtils.toast(this, "已删除该轮回复");
+            toast("round_deleted", "已删除该轮回复");
         } catch (Throwable t) {}
     }
 
@@ -1925,7 +2010,7 @@ private int findLatestSessionIndex() {
     private void onSendClicked() {
         if (isGenerating) return;
         String text = etInput.getText().toString().trim();
-        if (text.length() == 0 && pendingImageBase64List.isEmpty()) { UiUtils.toast(this, "请输入内容"); return; }
+        if (text.length() == 0 && pendingImageBase64List.isEmpty()) { toast("input_required", "请输入内容"); return; }
 
         setGeneratingState(true);
         etInput.setText(""); removeStoppedRow();
@@ -2022,11 +2107,11 @@ private int findLatestSessionIndex() {
             appendPartialAssistant();
         }
         clearDraft();
-        resetRound(); addStoppedRow("已停止生成"); saveCurrentSession();
+        resetRound(); addStoppedRow(t("stopped_note", "已停止生成")); saveCurrentSession();
     }
 
     private void continueGeneration() {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中"); return; }
+        if (isGenerating) { toast("generating_short", "正在生成中"); return; }
         removeStoppedRow();
         if (roundContent.length() > 0 || roundReasoning.length() > 0) appendPartialAssistant();
         try {
@@ -2056,7 +2141,7 @@ private int findLatestSessionIndex() {
     }
 
     private void regenerate() {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中"); return; }
+        if (isGenerating) { toast("generating_short", "正在生成中"); return; }
         removeStoppedRow();
         boolean removed = true;
         while (removed && messages.length() > 1) {
@@ -2070,11 +2155,11 @@ private int findLatestSessionIndex() {
     private void setGeneratingState(boolean generating) {
         isGenerating = generating; if (btnSend == null) return;
         if (generating) {
-            btnSend.setText("停止");
+            btnSend.setText(t("main_stop", "停止"));
             btnSend.setBackgroundResource(R.drawable.send_btn_stop_bg);
             btnSend.setTextColor(UiOverrides.onPrimary(this));
         } else {
-            btnSend.setText("发送");
+            btnSend.setText(t("main_send", "发送"));
             btnSend.setBackgroundDrawable(UiOverrides.sendBtnBgDrawable(this));
             btnSend.setTextColor(UiOverrides.sendBtnText(this));
         }
@@ -2085,17 +2170,22 @@ private int findLatestSessionIndex() {
         LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, UiUtils.dp(this, 10), 0, UiUtils.dp(this, 10)); row.setLayoutParams(lp);
-        TextView tv = new TextView(this); tv.setText(note == null ? "已停止生成" : note); tv.setTextSize(12); tv.setTextColor(UiOverrides.outline(this)); row.addView(tv);
+        TextView tv = new TextView(this); tv.setText(note == null ? t("stopped_note", "已停止生成") : note);
+        tv.setTextSize(12); tv.setTextColor(UiOverrides.outline(this)); row.addView(tv);
 
-        TextView btnGo = new TextView(this); btnGo.setText("继续生成"); btnGo.setTextSize(12); btnGo.setTextColor(UiOverrides.primary(this));
-        btnGo.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 6), UiUtils.dp(this, 12), UiUtils.dp(this, 6)); btnGo.setBackgroundResource(R.drawable.outline_btn_bg);
+        TextView btnGo = new TextView(this); btnGo.setText(t("stopped_continue", "继续生成"));
+        btnGo.setTextSize(12); btnGo.setTextColor(UiOverrides.primary(this));
+        btnGo.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 6), UiUtils.dp(this, 12), UiUtils.dp(this, 6));
+        btnGo.setBackgroundResource(R.drawable.outline_btn_bg);
         LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         glp.setMargins(UiUtils.dp(this, 10), 0, 0, 0); btnGo.setLayoutParams(glp);
         btnGo.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { if (guardClick()) continueGeneration(); } });
         row.addView(btnGo);
 
-        TextView btn = new TextView(this); btn.setText("重新生成"); btn.setTextSize(12); btn.setTextColor(UiOverrides.onSurface(this));
-        btn.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 6), UiUtils.dp(this, 12), UiUtils.dp(this, 6)); btn.setBackgroundResource(R.drawable.outline_btn_bg);
+        TextView btn = new TextView(this); btn.setText(t("stopped_regen", "重新生成"));
+        btn.setTextSize(12); btn.setTextColor(UiOverrides.onSurface(this));
+        btn.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 6), UiUtils.dp(this, 12), UiUtils.dp(this, 6));
+        btn.setBackgroundResource(R.drawable.outline_btn_bg);
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         blp.setMargins(UiUtils.dp(this, 8), 0, 0, 0); btn.setLayoutParams(blp);
         btn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { if (guardClick()) regenerate(); } });
@@ -2193,7 +2283,7 @@ private int findLatestSessionIndex() {
                 @Override public void onError(final String error) {
                     ui.post(new Runnable() { @Override public void run() {
                         if (!alive) return; shouldStop = true; setGeneratingState(false); finishReasoning(); finalizeContentMarkdown();
-                        appendPartialAssistant(); clearDraft(); resetRound(); addSystemNote("[错误] " + error); addStoppedRow("出错了");
+                        appendPartialAssistant(); clearDraft(); resetRound(); addSystemNote("[错误] " + error); addStoppedRow(t("stopped_error", "出错了"));
                         saveCurrentSession(); notifyIfBackground("生成失败", error);
                     }});
                 }
@@ -2298,7 +2388,8 @@ private int findLatestSessionIndex() {
         panel.setPadding(UiUtils.dp(this, 10), UiUtils.dp(this, 8), UiUtils.dp(this, 10), UiUtils.dp(this, 10));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, UiUtils.dp(this, 2), 0, UiUtils.dp(this, 6)); panel.setLayoutParams(lp);
-        currentReasoningHeader = new TextView(this); currentReasoningHeader.setText("正在深度思考..."); currentReasoningHeader.setTextSize(12); currentReasoningHeader.setTextColor(UiOverrides.outline(this));
+        currentReasoningHeader = new TextView(this); currentReasoningHeader.setText(t("reasoning_thinking", "正在深度思考..."));
+        currentReasoningHeader.setTextSize(12); currentReasoningHeader.setTextColor(UiOverrides.outline(this));
         currentReasoningContent = new TextView(this); currentReasoningContent.setTextSize(13); currentReasoningContent.setLineSpacing(UiUtils.dp(this, 3), 1f);
         currentReasoningContent.setTextColor(UiOverrides.bubbleAiText(this)); currentReasoningContent.setTextIsSelectable(true);
         currentReasoningContent.setPadding(0, UiUtils.dp(this, 6), 0, 0); currentReasoningContent.setVisibility(View.GONE);
@@ -2309,7 +2400,11 @@ private int findLatestSessionIndex() {
 
     private void finishReasoning() {
         if (!isReasoningActive) return; isReasoningActive = false;
-        if (currentReasoningHeader != null) { long d = (System.currentTimeMillis() - reasoningStartTime) / 1000; if (d < 1) d = 1; currentReasoningHeader.setText("已深度思考（" + d + " 秒）"); }
+        if (currentReasoningHeader != null) {
+            long d = (System.currentTimeMillis() - reasoningStartTime) / 1000;
+            if (d < 1) d = 1;
+            currentReasoningHeader.setText(t("reasoning_done_sec", "已深度思考（%d 秒）").replace("%d", String.valueOf(d)));
+        }
         if (currentReasoningContent != null) currentReasoningContent.setText(roundReasoning.toString());
     }
 
@@ -2537,7 +2632,7 @@ private int findLatestSessionIndex() {
                             } catch (Throwable t) {}
                         }
                         scrollToBottom();
-                        if (shouldStop) { setGeneratingState(false); addStoppedRow("已停止生成"); saveCurrentSession(); return; }
+                        if (shouldStop) { setGeneratingState(false); addStoppedRow(t("stopped_note", "已停止生成")); saveCurrentSession(); return; }
                         runAgentStep(round + 1);
                     }
                 });
@@ -2586,9 +2681,9 @@ private int findLatestSessionIndex() {
 
             final TextView header = new TextView(this);
             StringBuilder hb = new StringBuilder();
-            hb.append("搜索结果");
+            hb.append(t("card_search_results", "搜索结果"));
             if (query.length() > 0) hb.append("：").append(query);
-            hb.append("（").append(items.length()).append(" 条）");
+            hb.append("（").append(items.length()).append("）");
             if (provider.length() > 0) hb.append("  ").append(provider);
             header.setText(hb.toString());
             header.setTextSize(12);
@@ -2674,9 +2769,9 @@ private int findLatestSessionIndex() {
                 @Override public void onClick(View v) {
                     boolean show = contentBox.getVisibility() == View.GONE;
                     contentBox.setVisibility(show ? View.VISIBLE : View.GONE);
-                    String t = header.getText().toString();
-                    if (show) { if (!t.contains("点击收起")) header.setText(t + "  （点击收起）"); }
-                    else header.setText(t.replace("  （点击收起）", ""));
+                    String t2 = header.getText().toString();
+                    if (show) { if (!t2.contains("点击收起")) header.setText(t2 + "  " + t("tool_panel_collapse", "（点击收起）")); }
+                    else header.setText(t2.replace("  " + t("tool_panel_collapse", "（点击收起）"), ""));
                 }
             });
 
@@ -2703,7 +2798,7 @@ private int findLatestSessionIndex() {
             panel.setLayoutParams(lp);
 
             final TextView header = new TextView(this);
-            header.setText("网页阅读：" + (title.length() == 0 ? url : title));
+            header.setText(t("card_reader", "网页阅读：") + (title.length() == 0 ? url : title));
             header.setTextSize(12);
             header.setTextColor(UiOverrides.outline(this));
             header.setPadding(0, UiUtils.dp(this, 2), 0, UiUtils.dp(this, 2));
@@ -2744,7 +2839,7 @@ private int findLatestSessionIndex() {
 
             if (url.length() > 0) {
                 TextView btnOpen = new TextView(this);
-                btnOpen.setText("在浏览器中打开 ›");
+                btnOpen.setText(t("card_open_browser", "在浏览器中打开 ›"));
                 btnOpen.setTextSize(12);
                 btnOpen.setTextColor(UiOverrides.primary(this));
                 btnOpen.setPadding(UiUtils.dp(this, 4), UiUtils.dp(this, 8), UiUtils.dp(this, 4), UiUtils.dp(this, 4));
@@ -2761,9 +2856,9 @@ private int findLatestSessionIndex() {
                 @Override public void onClick(View v) {
                     boolean show = contentBox.getVisibility() == View.GONE;
                     contentBox.setVisibility(show ? View.VISIBLE : View.GONE);
-                    String t = header.getText().toString();
-                    if (show) { if (!t.contains("点击收起")) header.setText(t + "  （点击收起）"); }
-                    else header.setText(t.replace("  （点击收起）", ""));
+                    String t2 = header.getText().toString();
+                    if (show) { if (!t2.contains("点击收起")) header.setText(t2 + "  " + t("tool_panel_collapse", "（点击收起）")); }
+                    else header.setText(t2.replace("  " + t("tool_panel_collapse", "（点击收起）"), ""));
                 }
             });
 
@@ -2778,7 +2873,7 @@ private int findLatestSessionIndex() {
             it.putExtra(WebViewActivity.EXTRA_TITLE, title);
             startActivity(it);
         } catch (Throwable t) {
-            UiUtils.toast(this, "无法打开浏览器: " + t.getMessage());
+            Toast.makeText(this, t("err_no_web", "无法打开浏览器: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -2803,7 +2898,7 @@ private int findLatestSessionIndex() {
         et.setTextSize(15);
         et.setMinLines(2);
         et.setMaxLines(6);
-        et.setHint("在此输入你的回答…");
+        et.setHint(t("ask_dialog_hint", "在此输入你的回答…"));
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10), UiUtils.dp(this, 12), UiUtils.dp(this, 10));
 
         final String[] presets;
@@ -2821,7 +2916,7 @@ private int findLatestSessionIndex() {
 
         if (presets.length > 0) {
             new AlertDialog.Builder(this)
-                    .setTitle("AI 想问你")
+                    .setTitle(t("ask_dialog_title", "AI 想问你"))
                     .setMessage(question)
                     .setItems(presets, new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) {
@@ -2830,7 +2925,7 @@ private int findLatestSessionIndex() {
                             showAskInputDialog(question, et, askCall, otherCalls, round);
                         }
                     })
-                    .setNegativeButton("自己输入", new DialogInterface.OnClickListener() {
+                    .setNegativeButton(t("ask_self_input", "自己输入"), new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) {
                             d.dismiss();
                             showAskInputDialog(question, et, askCall, otherCalls, round);
@@ -2845,10 +2940,10 @@ private int findLatestSessionIndex() {
     private void showAskInputDialog(String question, final EditText et,
                                     final JSONObject askCall, final JSONArray otherCalls, final int round) {
         new AlertDialog.Builder(this)
-                .setTitle("AI 想问你")
+                .setTitle(t("ask_dialog_title", "AI 想问你"))
                 .setMessage(question)
                 .setView(et)
-                .setPositiveButton("回答", new DialogInterface.OnClickListener() {
+                .setPositiveButton(t("ask_answer", "回答"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         String answer = et.getText().toString().trim();
                         if (answer.length() == 0) answer = "(用户没有填写内容)";
@@ -2856,7 +2951,7 @@ private int findLatestSessionIndex() {
                         answerToAsk(askCall, answer, otherCalls, round);
                     }
                 })
-                .setNegativeButton("取消回答", new DialogInterface.OnClickListener() {
+                .setNegativeButton(t("ask_cancel", "取消回答"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         answerToAsk(askCall, "(用户取消了回答，请基于已有信息继续)", otherCalls, round);
@@ -2919,17 +3014,17 @@ private int findLatestSessionIndex() {
         };
 
         dlgHolder[0] = new AlertDialog.Builder(this)
-                .setTitle("确认删除")
+                .setTitle(t("delete_confirm_title", "确认删除"))
                 .setMessage("AI 想删除:\n" + fpath + (frec ? "（含目录内容）" : "")
                         + "\n\n" + sec + " 秒后自动同意…")
-                .setPositiveButton("立即删除", new DialogInterface.OnClickListener() {
+                .setPositiveButton(t("delete_confirm_now", "立即删除"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         try { timer.cancel(); } catch (Throwable t) {}
                         d.dismiss();
                         doDelete(deleteCall, finalArgs[0], otherCalls, round);
                     }
                 })
-                .setNegativeButton("拒绝", new DialogInterface.OnClickListener() {
+                .setNegativeButton(t("delete_confirm_reject", "拒绝"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         try { timer.cancel(); } catch (Throwable t) {}
                         d.dismiss();
@@ -3076,7 +3171,7 @@ private int findLatestSessionIndex() {
     private void compressContextAndContinue() {
         compressing = true;
         setGeneratingState(true);
-        addSystemNote("上下文较长，正在把早期对话压缩成摘要…");
+        addSystemNote(t("compress_note", "上下文较长，正在把早期对话压缩成摘要…"));
 
         final int keep = Math.max(2, compressRounds() / 2);
         final int total = messages.length();
@@ -3115,7 +3210,7 @@ private int findLatestSessionIndex() {
                         if (!alive) { compressing = false; return; }
                         compressing = false;
                         applyCompression(text, from);
-                        addSystemNote("上下文已压缩：对话原文保留在本会话中，AI 之后只看到「摘要 + 最近部分」");
+                        addSystemNote(t("compress_done", "上下文已压缩：对话原文保留在本会话中，AI 之后只看到「摘要 + 最近部分」"));
                         runAgentStep(0);
                     }});
                 }
@@ -3123,7 +3218,7 @@ private int findLatestSessionIndex() {
                     ui.post(new Runnable() { @Override public void run() {
                         if (!alive) { compressing = false; return; }
                         compressing = false;
-                        addSystemNote("上下文压缩失败，继续使用完整上下文");
+                        addSystemNote(t("compress_fail", "上下文压缩失败，继续使用完整上下文"));
                         runAgentStep(0);
                     }});
                 }
@@ -3261,25 +3356,25 @@ private int findLatestSessionIndex() {
                 break;
             }
             saveCurrentSession();
-            addSystemNote("已恢复完整上下文（清除压缩摘要，AI 将重新看到全部对话原文）");
+            addSystemNote(t("ctx_restored", "已恢复完整上下文（清除压缩摘要，AI 将重新看到全部对话原文）"));
         } catch (Throwable t) {}
     }
 
     // ============================================================
-    // 顶栏「⋯」更多菜单
+    // 更多菜单
     // ============================================================
 
     private void showMoreMenu() {
         List<String> items = new ArrayList<String>();
-        items.add("导出当前会话为 Markdown");
-        items.add("分享当前会话全文");
-        items.add("复制最后一条回复");
-        items.add("导入Markdown会话");
-        items.add("导入JSON会话");
-        items.add("压缩当前上下文");
-        items.add("恢复完整上下文（清除压缩摘要）");
-        items.add("清空当前会话内容");
-        items.add("打开设置");
+        items.add(t("more_export_md", "导出当前会话为 Markdown"));
+        items.add(t("more_share_session", "分享当前会话全文"));
+        items.add(t("more_copy_last", "复制最后一条回复"));
+        items.add(t("more_import_md", "导入Markdown会话"));
+        items.add(t("more_import_json", "导入JSON会话"));
+        items.add(t("more_compress", "压缩当前上下文"));
+        items.add(t("more_restore_ctx", "恢复完整上下文（清除压缩摘要）"));
+        items.add(t("more_clear_session", "清空当前会话内容"));
+        items.add(t("more_open_settings", "打开设置"));
 
         final List<JSONObject> mainPlugins;
         try {
@@ -3294,7 +3389,7 @@ private int findLatestSessionIndex() {
 
         final List<String> fItems = items;
         new AlertDialog.Builder(this)
-                .setTitle("更多")
+                .setTitle(t("more_title", "更多"))
                 .setItems(fItems.toArray(new String[0]), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
@@ -3320,7 +3415,7 @@ private int findLatestSessionIndex() {
                         }
                     }
                 })
-                .setNegativeButton("取消", null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     private void copyLastAssistant() {
@@ -3333,20 +3428,20 @@ private int findLatestSessionIndex() {
                     if (c.trim().length() > 0) { MarkdownView.copyText(this, c); return; }
                 }
             }
-            UiUtils.toast(this, "还没有可复制的回复");
+            toast("no_reply_to_copy", "还没有可复制的回复");
         } catch (Throwable t) {}
     }
 
     private void manualCompress() {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中"); return; }
-        if (countTurns() < 4) { UiUtils.toast(this, "对话太短，不需要压缩"); return; }
+        if (isGenerating) { toast("generating_short", "正在生成中"); return; }
+        if (countTurns() < 4) { toast("err_too_short", "对话太短，不需要压缩"); return; }
         compressContextAndContinue();
     }
 
     private void clearCurrentSession() {
         new AlertDialog.Builder(this)
-                .setTitle("清空当前会话的内容？")
-                .setPositiveButton("清空", new DialogInterface.OnClickListener() {
+                .setTitle(t("chat_empty", "清空当前会话的内容？"))
+                .setPositiveButton(t("chat_clear", "清空"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         try {
                             messages = new JSONArray();
@@ -3356,7 +3451,7 @@ private int findLatestSessionIndex() {
                         d.dismiss();
                     }
                 })
-                .setNegativeButton("取消", null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
     }
 
     // ============================================================
@@ -3373,14 +3468,14 @@ private int findLatestSessionIndex() {
             }
             showPickerDialog(pickerDir);
         } catch (Throwable t) {
-            UiUtils.toast(this, "无法打开文件浏览器");
+            toast("file_picker_no_browser", "无法打开文件浏览器");
         }
     }
 
     private void showPickerDialog(final File dir) {
         final List<File> items = fileExecutor.listDir(dir);
         List<String> names = new ArrayList<String>();
-        names.add("..  返回上一级");
+        names.add(t("file_picker_up", "..  返回上一级"));
         for (int i = 0; i < items.size(); i++) {
             File f = items.get(i);
             String extra = f.isFile() ? "  (" + UiUtils.formatSize(f.length()) + ")" : "";
@@ -3395,18 +3490,18 @@ private int findLatestSessionIndex() {
                 LinearLayout.LayoutParams.MATCH_PARENT, UiUtils.dp(this, 340)));
 
         final AlertDialog dlg = new AlertDialog.Builder(this)
-                .setTitle(dir.getAbsolutePath() + "\n已选 " + pendingRefFiles.size() + " 个文件")
+                .setTitle(dir.getAbsolutePath() + "\n" + t("file_picker_selected", "已选 %d 个文件").replace("%d", String.valueOf(pendingRefFiles.size())))
                 .setView(wrap)
-                .setPositiveButton("完成", new DialogInterface.OnClickListener() {
+                .setPositiveButton(t("file_picker_done", "完成"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) { finishRefPick(); }
                 })
-                .setNeutralButton("清空已选", new DialogInterface.OnClickListener() {
+                .setNeutralButton(t("file_picker_clear", "清空已选"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         pendingRefFiles.clear();
-                        UiUtils.toast(MainActivity.this, "已清空，可重新选择");
+                        toast("file_picker_cleared", "已清空，可重新选择");
                     }
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton(t("common_cancel", "取消"), null)
                 .create();
 
         lv.setOnItemClickListener(new android.widget.AdapterView.OnItemClickListener() {
@@ -3429,7 +3524,7 @@ private int findLatestSessionIndex() {
                     } else {
                         if (!pendingRefFiles.contains(f)) {
                             pendingRefFiles.add(f);
-                            dlg.setTitle(dir.getAbsolutePath() + "\n已选 " + pendingRefFiles.size() + " 个文件");
+                            dlg.setTitle(dir.getAbsolutePath() + "\n" + t("file_picker_selected", "已选 %d 个文件").replace("%d", String.valueOf(pendingRefFiles.size())));
                         }
                     }
                 } catch (Throwable t) {}
@@ -3451,7 +3546,7 @@ private int findLatestSessionIndex() {
             int idx = cur.lastIndexOf('@');
             if (idx >= 0) e.replace(idx, e.length(), sb.toString());
             else e.append(sb.toString());
-            UiUtils.toast(this, "已引用 " + pendingRefFiles.size() + " 个文件");
+            Toast.makeText(this, t("file_picker_ref", "已引用 %d 个文件").replace("%d", String.valueOf(pendingRefFiles.size())), Toast.LENGTH_SHORT).show();
         } catch (Throwable t) {}
         pendingRefFiles.clear();
     }
@@ -3517,7 +3612,7 @@ private int findLatestSessionIndex() {
     // ============================================================
 
     private void showEditDialog(final int index) {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中，请先停止"); return; }
+        if (isGenerating) { toast("main_generating_please_stop", "正在生成中，请先停止"); return; }
         if (index < 0 || index >= messages.length()) return;
         JSONObject m = messages.optJSONObject(index); if (m == null || !"user".equals(UiUtils.optStr(m, "role"))) return;
         final String oldText = UiUtils.contentToText(m, false);
@@ -3534,14 +3629,17 @@ private int findLatestSessionIndex() {
         wrap.addView(et, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         AlertDialog.Builder b = new AlertDialog.Builder(this);
-        b.setTitle(oldImage == null ? "修改我的消息" : "修改我的消息（含图片）"); b.setView(wrap);
-        b.setPositiveButton("重新发送", null); b.setNeutralButton("复制", null); b.setNegativeButton("取消", null);
+        b.setTitle(oldImage == null ? t("msg_edit_title", "修改我的消息") : t("msg_edit_title_with_image", "修改我的消息（含图片）"));
+        b.setView(wrap);
+        b.setPositiveButton(t("msg_resend", "重新发送"), null);
+        b.setNeutralButton(t("common_copy", "复制"), null);
+        b.setNegativeButton(t("common_cancel", "取消"), null);
         final AlertDialog dlg = b.create();
         try { dlg.show(); } catch (Throwable t) { return; }
         dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 String nt = et.getText().toString().trim();
-                if (nt.length() == 0 && oldImage == null) { UiUtils.toast(MainActivity.this, "内容不能为空"); return; }
+                if (nt.length() == 0 && oldImage == null) { toast("msg_empty", "内容不能为空"); return; }
                 dlg.dismiss(); resendFrom(index, nt, oldImage);
             }
         });
@@ -3551,7 +3649,7 @@ private int findLatestSessionIndex() {
     }
 
     private void resendFrom(int index, String newText, String imageB64) {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中，请先停止"); return; }
+        if (isGenerating) { toast("main_generating_please_stop", "正在生成中，请先停止"); return; }
         removeStoppedRow();
         while (messages.length() > index) messages.remove(messages.length() - 1);
         List<String> imgs = new ArrayList<String>();
@@ -3566,7 +3664,7 @@ private int findLatestSessionIndex() {
             if (imageB64List == null || imageB64List.isEmpty()) m.put("content", text);
             else {
                 JSONArray arr = new JSONArray();
-                JSONObject t = new JSONObject(); t.put("type", "text"); t.put("text", text == null ? "" : text); arr.put(t);
+                JSONObject t2 = new JSONObject(); t2.put("type", "text"); t2.put("text", text == null ? "" : text); arr.put(t2);
                 for (int i = 0; i < imageB64List.size(); i++) {
                     JSONObject im = new JSONObject(); im.put("type", "image_url");
                     JSONObject u = new JSONObject(); u.put("url", "data:image/jpeg;base64," + imageB64List.get(i));
@@ -3578,92 +3676,95 @@ private int findLatestSessionIndex() {
         } catch (Throwable t) {}
     }
 
-private void showAttachMenu() {
-    List<String> items = new ArrayList<String>();
-    items.add("从相册选择图片");
-    items.add("拍照");
-    items.add("引用本地文件（同 @）");
-    items.add("导入会话");
-    items.add("实时通话");
+    private void showAttachMenu() {
+        List<String> items = new ArrayList<String>();
+        items.add(t("attach_gallery", "从相册选择图片"));
+        items.add(t("attach_camera", "拍照"));
+        items.add(t("attach_ref_file", "引用本地文件（同 @）"));
+        items.add(t("attach_import", "导入会话"));
+        items.add(t("attach_realtime", "实时通话"));
 
-    final List<JSONObject> inputPlugins;
-    try {
-        inputPlugins = PluginManager.getUiPluginsByExtension(this, PluginManager.EXT_INPUT_PLUS);
-    } catch (Throwable t) {
-        inputPlugins = new ArrayList<JSONObject>();
-    }
-    for (int i = 0; i < inputPlugins.size(); i++) {
-        JSONObject p = inputPlugins.get(i);
-        items.add(p.optString("title", p.optString("name", "插件")));
-    }
+        final List<JSONObject> inputPlugins;
+        try {
+            inputPlugins = PluginManager.getUiPluginsByExtension(this, PluginManager.EXT_INPUT_PLUS);
+        } catch (Throwable t) {
+            inputPlugins = new ArrayList<JSONObject>();
+        }
+        for (int i = 0; i < inputPlugins.size(); i++) {
+            JSONObject p = inputPlugins.get(i);
+            items.add(p.optString("title", p.optString("name", "插件")));
+        }
 
-    final List<String> fItems = items;
-    new AlertDialog.Builder(this).setTitle("添加内容").setItems(fItems.toArray(new String[0]), new DialogInterface.OnClickListener() {
-        @Override public void onClick(DialogInterface d, int which) {
-            d.dismiss();
-            String it = fItems.get(which);
-            if ("从相册选择图片".equals(it)) pickFromGallery();
-            else if ("拍照".equals(it)) takePhoto();
-            else if ("引用本地文件（同 @）".equals(it)) showFilePicker();
-            else if ("导入会话".equals(it)) showImportMenu();
-            else if ("实时通话".equals(it)) startRealtimeCall();
-            else if (it != null) {
-                for (int k = 0; k < inputPlugins.size(); k++) {
-                    JSONObject p = inputPlugins.get(k);
-                    if (it.equals(p.optString("title", p.optString("name", "插件")))) {
-                        final JSONObject fp = p;
-                        UiPluginDialog.show(MainActivity.this, fp, new UiPluginDialog.OnSubmitListener() {
-                            @Override public void onSubmit(final JSONObject args) {
-                                runUiPluginInline(fp, args);
-                            }
-                        });
-                        break;
+        final List<String> fItems = items;
+        new AlertDialog.Builder(this).setTitle(t("attach_title", "添加内容")).setItems(fItems.toArray(new String[0]), new DialogInterface.OnClickListener() {
+            @Override public void onClick(DialogInterface d, int which) {
+                d.dismiss();
+                String it = fItems.get(which);
+                if (t("attach_gallery", "从相册选择图片").equals(it)) pickFromGallery();
+                else if (t("attach_camera", "拍照").equals(it)) takePhoto();
+                else if (t("attach_ref_file", "引用本地文件（同 @）").equals(it)) showFilePicker();
+                else if (t("attach_import", "导入会话").equals(it)) showImportMenu();
+                else if (t("attach_realtime", "实时通话").equals(it)) startRealtimeCall();
+                else if (it != null) {
+                    for (int k = 0; k < inputPlugins.size(); k++) {
+                        JSONObject p = inputPlugins.get(k);
+                        if (it.equals(p.optString("title", p.optString("name", "插件")))) {
+                            final JSONObject fp = p;
+                            UiPluginDialog.show(MainActivity.this, fp, new UiPluginDialog.OnSubmitListener() {
+                                @Override public void onSubmit(final JSONObject args) {
+                                    runUiPluginInline(fp, args);
+                                }
+                            });
+                            break;
+                        }
                     }
                 }
             }
-        }
-    }).create().show();
-}
-
-/** 打开实时通话页（默认语音，用户可在通话页里随时开启视频 / 屏幕共享） */
-private void startRealtimeCall() {
-    try {
-        // 若配置不完整，给一个友好提示（不阻塞进入通话页，用户可能只是想手动改）
-        String[] cfg = RealtimeConfig.resolve(this);
-        if (cfg[0].length() == 0 || cfg[2].length() == 0 || cfg[1].length() == 0) {
-            new AlertDialog.Builder(this)
-                    .setTitle("实时通话未配置完整")
-                    .setMessage("需要先配置「设置 → 语音 → 实时通话」里的 WebSocket 地址 / 模型 / API Key。\n\n是否现在去配置？")
-                    .setPositiveButton("去配置", new DialogInterface.OnClickListener() {
-                        @Override public void onClick(DialogInterface d, int w) {
-                            try {
-                                Intent it = new Intent(MainActivity.this, SettingsDetailActivity.class);
-                                it.putExtra(SettingsDetailActivity.EXTRA_CATEGORY, "realtime");
-                                startActivity(it);
-                            } catch (Throwable t) {}
-                            d.dismiss();
-                        }
-                    })
-                    .setNegativeButton("取消", null)
-                    .create().show();
-            return;
-        }
-        Intent it = new Intent(this, VoiceCallActivity.class);
-        it.putExtra(VoiceCallActivity.EXTRA_MODE, "voice");
-        startActivity(it);
-    } catch (Throwable t) {
-        UiUtils.toast(this, "无法打开通话界面: " + t.getMessage());
+        }).create().show();
     }
-}
+
+    private void startRealtimeCall() {
+        try {
+            String[] cfg = RealtimeConfig.resolve(this);
+            if (cfg[0].length() == 0 || cfg[2].length() == 0 || cfg[1].length() == 0) {
+                new AlertDialog.Builder(this)
+                        .setTitle(t("realtime_not_configured_title", "实时通话未配置完整"))
+                        .setMessage(t("realtime_not_configured_msg", "需要先配置「设置 → 语音 → 实时通话」里的 WebSocket 地址 / 模型 / API Key。\n\n是否现在去配置？"))
+                        .setPositiveButton(t("realtime_go_config", "去配置"), new DialogInterface.OnClickListener() {
+                            @Override public void onClick(DialogInterface d, int w) {
+                                try {
+                                    Intent it = new Intent(MainActivity.this, SettingsDetailActivity.class);
+                                    it.putExtra(SettingsDetailActivity.EXTRA_CATEGORY, "realtime");
+                                    startActivity(it);
+                                } catch (Throwable t) {}
+                                d.dismiss();
+                            }
+                        })
+                        .setNegativeButton(t("common_cancel", "取消"), null)
+                        .create().show();
+                return;
+            }
+            Intent it = new Intent(this, VoiceCallActivity.class);
+            it.putExtra(VoiceCallActivity.EXTRA_MODE, "voice");
+            startActivity(it);
+        } catch (Throwable t) {
+            Toast.makeText(this, t("realtime_no_open", "无法打开通话界面: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
 
     private void pickFromGallery() {
-        try { Intent it = new Intent(Intent.ACTION_GET_CONTENT); it.setType("image/*"); it.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(Intent.createChooser(it, "选择图片"), REQ_IMG_PICK); }
-        catch (Throwable t) { UiUtils.toast(this, "无法打开相册: " + t.getMessage()); }
+        try { Intent it = new Intent(Intent.ACTION_GET_CONTENT); it.setType("image/*"); it.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(Intent.createChooser(it, t("attach_gallery", "从相册选择图片")), REQ_IMG_PICK); }
+        catch (Throwable t) { Toast.makeText(this, t("attach_no_gallery", "无法打开相册: ") + t.getMessage(), Toast.LENGTH_SHORT).show(); }
     }
 
     private void takePhoto() {
-        try { Intent it = new Intent(MediaStore.ACTION_IMAGE_CAPTURE); if (it.resolveActivity(getPackageManager()) == null) { UiUtils.toast(this, "未找到相机应用"); return; } startActivityForResult(it, REQ_IMG_CAMERA); }
-        catch (Throwable t) { UiUtils.toast(this, "无法打开相机: " + t.getMessage()); }
+        try {
+            Intent it = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            if (it.resolveActivity(getPackageManager()) == null) { toast("attach_no_camera", "未找到相机应用"); return; }
+            startActivityForResult(it, REQ_IMG_CAMERA);
+        } catch (Throwable t) {
+            Toast.makeText(this, t("attach_no_camera2", "无法打开相机: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     // ============================================================
@@ -3677,20 +3778,20 @@ private void startRealtimeCall() {
 
             if ("script".equals(kind)) {
                 new AlertDialog.Builder(this)
-                        .setTitle("执行脚本？")
-                        .setMessage("该插件将执行本机 shell 脚本。只在你信任插件来源时继续。")
-                        .setPositiveButton("执行", new DialogInterface.OnClickListener() {
+                        .setTitle(t("plugin_exec_script_title", "执行脚本？"))
+                        .setMessage(t("plugin_exec_script_msg", "该插件将执行本机 shell 脚本。只在你信任插件来源时继续。"))
+                        .setPositiveButton(t("plugin_exec", "执行"), new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int w) {
                                 d.dismiss();
                                 doRunUiPlugin(plugin, args, kind);
                             }
                         })
-                        .setNegativeButton("取消", null).create().show();
+                        .setNegativeButton(t("common_cancel", "取消"), null).create().show();
                 return;
             }
             doRunUiPlugin(plugin, args, kind);
         } catch (Throwable t) {
-            UiUtils.toast(this, "执行失败: " + t.getMessage());
+            Toast.makeText(this, "执行失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -3708,24 +3809,21 @@ private void startRealtimeCall() {
                                 }
                             } catch (Throwable t) {}
                         } else if ("ui_change".equals(kind)) {
-                            // 配色/尺寸覆盖类插件：弹窗展示结果，并重建当前界面配色
                             new AlertDialog.Builder(MainActivity.this)
                                     .setTitle("UI 已更新")
                                     .setMessage(result == null ? "（空）" : result)
-                                    .setPositiveButton("知道了", new DialogInterface.OnClickListener() {
+                                    .setPositiveButton(t("common_know", "知道了"), new DialogInterface.OnClickListener() {
                                         @Override public void onClick(DialogInterface d, int w) {
                                             d.dismiss();
-                                            // 立即应用新配色
                                             try { applyThemeChrome(); } catch (Throwable t) {}
                                             try { applyTopbarIcons(); } catch (Throwable t) {}
-                                            // 重绘消息列表，让气泡颜色立即生效
                                             try { renderMessages(); } catch (Throwable t) {}
                                         }
                                     })
                                     .create().show();
                         } else {
                             if (result != null && result.startsWith("错误:")) {
-                                UiUtils.toast(MainActivity.this, result);
+                                Toast.makeText(MainActivity.this, result, Toast.LENGTH_SHORT).show();
                                 return;
                             }
                             try {
@@ -3768,7 +3866,7 @@ private void startRealtimeCall() {
             } else if (data.getData() != null) {
                 uris.add(data.getData());
             }
-            if (uris.isEmpty()) { UiUtils.toast(this, "未选择图片"); return; }
+            if (uris.isEmpty()) { toast("image_none", "未选择图片"); return; }
             for (int i = 0; i < uris.size(); i++) prepareImageFromUri(uris.get(i));
         }
     }
@@ -3776,7 +3874,7 @@ private void startRealtimeCall() {
     private void prepareImageFromUri(final Uri uri) {
         new Thread(new Runnable() { @Override public void run() {
             Bitmap bmp = decodeSampled(uri, 1280);
-            if (bmp == null) { ui.post(new Runnable() { @Override public void run() { UiUtils.toast(MainActivity.this, "图片读取失败"); } }); return; }
+            if (bmp == null) { ui.post(new Runnable() { @Override public void run() { toast("image_read_fail", "图片读取失败"); } }); return; }
             prepareImageFromBitmap(bmp);
         }}).start();
     }
@@ -3787,7 +3885,7 @@ private void startRealtimeCall() {
             final byte[] bytes = compressToBytes(src, 1280, 85);
             final Bitmap thumb = makeThumb(src, 240);
             if (b64 == null || bytes == null) {
-                ui.post(new Runnable() { @Override public void run() { UiUtils.toast(MainActivity.this, "图片处理失败"); } });
+                ui.post(new Runnable() { @Override public void run() { toast("image_process_fail", "图片处理失败"); } });
                 return;
             }
             ui.post(new Runnable() { @Override public void run() {
@@ -3796,7 +3894,7 @@ private void startRealtimeCall() {
                 pendingImageBytesList.add(bytes);
                 refreshImagePreview(thumb);
                 int n = pendingImageBase64List.size();
-                if (n == 1) UiUtils.toast(MainActivity.this, "图片已附加，可继续添加或直接发送");
+                if (n == 1) toast("image_attached", "图片已附加，可继续添加或直接发送");
             }});
         }}).start();
     }
@@ -3812,7 +3910,7 @@ private void startRealtimeCall() {
         TextView cnt = (TextView) findViewById(R.id.tvPreviewCount);
         if (cnt != null) {
             int n = pendingImageBase64List.size();
-            cnt.setText(n > 1 ? ("已选 " + n + " 张") : "");
+            cnt.setText(n > 1 ? t("image_count", "已选 %d 张").replace("%d", String.valueOf(n)) : "");
         }
     }
 
@@ -4021,7 +4119,7 @@ private void startRealtimeCall() {
         if (total > renderLimit) {
             start = total - renderLimit;
             TextView more = new TextView(this);
-            more.setText("▲ 上方还有 " + start + " 条更早的消息，点击加载");
+            more.setText(t("main_load_earlier", "▲ 上方还有 %d 条更早的消息，点击加载").replace("%d", String.valueOf(start)));
             more.setTextSize(12);
             more.setTextColor(UiOverrides.primary(this));
             more.setGravity(Gravity.CENTER);
@@ -4050,9 +4148,11 @@ private void startRealtimeCall() {
 
     private void showImportMenu() {
         try {
-            final String[] items = new String[]{"导入Markdown会话", "导入JSON会话"};
+            final String[] items = new String[]{
+                    t("import_md", "导入Markdown会话"),
+                    t("import_json", "导入JSON会话")};
             new AlertDialog.Builder(this)
-                    .setTitle("导入会话")
+                    .setTitle(t("import_title", "导入会话"))
                     .setItems(items, new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) {
                             d.dismiss();
@@ -4060,10 +4160,10 @@ private void startRealtimeCall() {
                             else if (which == 1) importJsonSession();
                         }
                     })
-                    .setNegativeButton("取消", null)
+                    .setNegativeButton(t("common_cancel", "取消"), null)
                     .create().show();
         } catch (Throwable t) {
-            UiUtils.toast(this, "打开导入菜单失败: " + t.getMessage());
+            Toast.makeText(this, t("err_no_import_menu", "打开导入菜单失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -4073,9 +4173,9 @@ private void startRealtimeCall() {
             it.setType("text/*");
             it.addCategory(Intent.CATEGORY_OPENABLE);
             it.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"text/markdown", "text/x-markdown", "text/plain", "application/octet-stream"});
-            startActivityForResult(Intent.createChooser(it, "选择Markdown文件"), REQ_IMPORT_MD);
+            startActivityForResult(Intent.createChooser(it, t("import_choose_md", "选择Markdown文件")), REQ_IMPORT_MD);
         } catch (Throwable t) {
-            UiUtils.toast(this, "无法打开文件选择器: " + t.getMessage());
+            Toast.makeText(this, t("err_no_file_picker", "无法打开文件选择器: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -4084,9 +4184,9 @@ private void startRealtimeCall() {
             Intent it = new Intent(Intent.ACTION_GET_CONTENT);
             it.setType("application/json");
             it.addCategory(Intent.CATEGORY_OPENABLE);
-            startActivityForResult(Intent.createChooser(it, "选择JSON文件"), REQ_IMPORT_JSON);
+            startActivityForResult(Intent.createChooser(it, t("import_choose_json", "选择JSON文件")), REQ_IMPORT_JSON);
         } catch (Throwable t) {
-            UiUtils.toast(this, "无法打开文件选择器: " + t.getMessage());
+            Toast.makeText(this, t("err_no_file_picker", "无法打开文件选择器: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -4129,7 +4229,7 @@ private void startRealtimeCall() {
             flushMdSection(msgs, currentRole, currentContent.toString(), pendingReasoning);
             return msgs;
         } catch (Throwable t) {
-            UiUtils.toast(this, "解析Markdown失败: " + t.getMessage());
+            Toast.makeText(this, t("err_md_parse", "解析Markdown失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
             return new JSONArray();
         }
     }
@@ -4181,9 +4281,9 @@ private void startRealtimeCall() {
     }
 
     private void loadImportedSession(JSONArray msgs) {
-        if (isGenerating) { UiUtils.toast(this, "正在生成中，请先停止"); return; }
+        if (isGenerating) { toast("main_generating_please_stop", "正在生成中，请先停止"); return; }
         if (msgs == null || msgs.length() == 0) {
-            UiUtils.toast(this, "导入的会话内容为空");
+            toast("err_import_empty", "导入的会话内容为空");
             return;
         }
         saveCurrentSession();
@@ -4205,6 +4305,6 @@ private void startRealtimeCall() {
         if (layoutWelcome != null) layoutWelcome.setVisibility(View.GONE);
         renderMessages();
         saveCurrentSession();
-        UiUtils.toast(this, "会话导入成功");
+        toast("err_import_ok", "会话导入成功");
     }
 }

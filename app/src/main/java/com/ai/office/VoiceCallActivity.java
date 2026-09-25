@@ -23,7 +23,6 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -39,31 +38,27 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class VoiceCallActivity extends BaseActivity {
 
-    public static final String EXTRA_MODE = "mode"; // "voice" 或 "video"，仅作初始状态
+    public static final String EXTRA_MODE = "mode"; // "voice" 或 "video"
 
     private static final int REQ_RECORD_AUDIO = 6101;
     private static final int REQ_CAMERA = 6102;
     private static final int REQ_PROJECTION_VOICE = 6103;
 
-    // 音频参数（GLM-Realtime 协议）
     private static final int SAMPLE_RATE = 24000;
     private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
-    private static final int AUDIO_CHUNK_SAMPLES = 480;   // 20ms @24kHz
+    private static final int AUDIO_CHUNK_SAMPLES = 480;
     private static final int AUDIO_CHUNK_BYTES = AUDIO_CHUNK_SAMPLES * 2;
 
-    // 视频参数
-    private static final long VIDEO_FRAME_INTERVAL = 500L;  // 视频帧间隔（2fps）
-    private static final long SCREEN_FRAME_INTERVAL = 1000L; // 屏幕共享间隔（1fps）
+    private static final long VIDEO_FRAME_INTERVAL = 500L;
+    private static final long SCREEN_FRAME_INTERVAL = 1000L;
 
-    // UI
     private FrameLayout root;
     private SurfaceView surfaceView;
     private TextView tvStatus, tvAiCaption, tvUserCaption;
     private ImageView btnClose, btnMic, btnVideo, btnScreen, btnSwitchCamera, btnFlash;
     private LinearLayout topBar, bottomBar;
 
-    // 通话状态
     private RealtimeClient realtime;
     private String sessionModel = "";
     private String sessionVoice = "";
@@ -72,25 +67,21 @@ public class VoiceCallActivity extends BaseActivity {
     private boolean videoOn = false;
     private boolean screenShareOn = false;
 
-    // 音频
     private AudioRecord audioRecord;
     private AudioTrack audioTrack;
     private Thread audioReadThread;
     private final AtomicBoolean audioRunning = new AtomicBoolean(false);
     private final Object audioPlayLock = new Object();
 
-    // 视频
     private Camera camera;
     private int currentCameraId = 1;
     private boolean flashOn = false;
     private final Handler videoHandler = new Handler(Looper.getMainLooper());
     private Runnable videoFrameTask;
 
-    // 屏幕共享
     private final Handler screenHandler = new Handler(Looper.getMainLooper());
     private Runnable screenFrameTask;
 
-    // 字幕累积
     private final StringBuilder aiCaptionBuf = new StringBuilder();
     private final StringBuilder userCaptionBuf = new StringBuilder();
 
@@ -98,8 +89,10 @@ public class VoiceCallActivity extends BaseActivity {
     private volatile boolean alive = true;
     private boolean connected = false;
 
-    // 工具配置（从设置读，用于注册给 realtime session）
     private JSONArray sessionTools;
+
+    // ---------- 简写：当前 Activity 内的语言翻译 ----------
+    private String t(String key, String def) { return LanguageManager.t(this, key, def); }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,15 +115,11 @@ public class VoiceCallActivity extends BaseActivity {
                 startCall(wantVideo);
             }
         } catch (Throwable t) {
-            Toast.makeText(this, "通话页初始化失败: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Init failed: " + t.getMessage(), Toast.LENGTH_LONG).show();
             finish();
         }
     }
 
-    /**
-     * 通话页专用系统栏：黑色背景 → 状态栏/导航栏透明 + 内容延伸到状态栏下，
-     * 状态栏图标保持白色（不设 LIGHT_STATUS_BAR）。覆盖 BaseActivity 的浅色方案。
-     */
     @Override
     protected void applySystemBars() {
         try {
@@ -143,7 +132,6 @@ public class VoiceCallActivity extends BaseActivity {
             flags |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-            // 通话页背景是黑色，强制浅色状态栏文字会看不见，因此清掉
             flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
             if (Build.VERSION.SDK_INT >= 26) {
                 flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
@@ -152,7 +140,6 @@ public class VoiceCallActivity extends BaseActivity {
         } catch (Throwable t) {}
     }
 
-    /** 状态栏高度（px），用于给 topBar 加顶部 padding，避免内容被状态栏遮住 */
     private int statusBarHeightPx() {
         try {
             int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
@@ -161,7 +148,6 @@ public class VoiceCallActivity extends BaseActivity {
         return UiUtils.dp(this, 24);
     }
 
-    /** 从设置读取当前启用工具，传给 realtime session */
     private void prepareTools() {
         try {
             sessionTools = AiClient.buildTools(
@@ -217,14 +203,13 @@ public class VoiceCallActivity extends BaseActivity {
     }
 
     // ============================================================
-    // UI 构建（全屏 FrameLayout，UI 叠加在 SurfaceView 上层）
+    // UI 构建
     // ============================================================
 
     private void buildUi() {
         root = new FrameLayout(this);
         root.setBackgroundColor(0xFF000000);
 
-        // 全屏 SurfaceView（底层）
         surfaceView = new SurfaceView(this);
         surfaceView.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -240,7 +225,6 @@ public class VoiceCallActivity extends BaseActivity {
         });
         root.addView(surfaceView);
 
-        // 半透明遮罩，让 UI 与视频明显区分
         View overlay = new View(this);
         overlay.setBackgroundColor(0x30000000);
         overlay.setLayoutParams(new FrameLayout.LayoutParams(
@@ -252,7 +236,6 @@ public class VoiceCallActivity extends BaseActivity {
 
         int statusH = statusBarHeightPx();
 
-        // 顶部栏
         topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -263,28 +246,27 @@ public class VoiceCallActivity extends BaseActivity {
                 Gravity.TOP);
         topBar.setLayoutParams(tlp);
 
-// 关闭/返回按钮：ImageView + 固定 44dp 方形；透明背景，不画圆
-btnClose = new ImageView(this);
-btnClose.setImageResource(R.drawable.ic_keyboard_backspace_white);
-final int closeSize = UiUtils.dp(this, 44);
-btnClose.setLayoutParams(new LinearLayout.LayoutParams(closeSize, closeSize));
-btnClose.setPadding(UiUtils.dp(this, 8), UiUtils.dp(this, 8),
-                    UiUtils.dp(this, 8), UiUtils.dp(this, 8));
-btnClose.setScaleType(ImageView.ScaleType.FIT_CENTER);
-btnClose.setBackgroundColor(0x00000000);
-btnClose.setClickable(true);
-btnClose.setFocusable(true);
-btnClose.setOnClickListener(new View.OnClickListener() {
-    @Override public void onClick(View v) { hangUp(); }
-});
-topBar.addView(btnClose);
+        btnClose = new ImageView(this);
+        btnClose.setImageResource(R.drawable.ic_keyboard_backspace_white);
+        final int closeSize = UiUtils.dp(this, 44);
+        btnClose.setLayoutParams(new LinearLayout.LayoutParams(closeSize, closeSize));
+        btnClose.setPadding(UiUtils.dp(this, 8), UiUtils.dp(this, 8),
+                            UiUtils.dp(this, 8), UiUtils.dp(this, 8));
+        btnClose.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        btnClose.setBackgroundColor(0x00000000);
+        btnClose.setClickable(true);
+        btnClose.setFocusable(true);
+        btnClose.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { hangUp(); }
+        });
+        topBar.addView(btnClose);
 
         View spacer1 = new View(this);
         spacer1.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
         topBar.addView(spacer1);
 
         tvStatus = new TextView(this);
-        tvStatus.setText("连接中…");
+        tvStatus.setText(t("realtime_status_connecting", "连接中…"));
         tvStatus.setTextSize(14);
         tvStatus.setTextColor(0xFFFFFFFF);
         tvStatus.setShadowLayer(3f, 1f, 1f, 0xFF000000);
@@ -295,14 +277,12 @@ topBar.addView(btnClose);
         spacer2.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
         topBar.addView(spacer2);
 
-        // 右侧等宽占位，保持 tvStatus 居中
         View placeholder = new View(this);
         placeholder.setLayoutParams(new LinearLayout.LayoutParams(closeSize, closeSize));
         topBar.addView(placeholder);
 
         root.addView(topBar);
 
-        // 底部字幕区
         LinearLayout captionBox = new LinearLayout(this);
         captionBox.setOrientation(LinearLayout.VERTICAL);
         captionBox.setGravity(Gravity.BOTTOM);
@@ -335,7 +315,6 @@ topBar.addView(btnClose);
 
         root.addView(captionBox);
 
-        // 底部按钮栏
         bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomBar.setGravity(Gravity.CENTER);
@@ -347,7 +326,6 @@ topBar.addView(btnClose);
                 Gravity.BOTTOM);
         bottomBar.setLayoutParams(blp);
 
-        // 麦克风（默认显示"关"状态的图标，通话开始后自动开启会切换）
         btnMic = makeCircleIconButton(R.drawable.ic_microphone_off_white, 64, 0xFF444444);
         btnMic.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { toggleMic(); }
@@ -358,7 +336,6 @@ topBar.addView(btnClose);
         gap1.setLayoutParams(new LinearLayout.LayoutParams(UiUtils.dp(this, 16), 1));
         bottomBar.addView(gap1);
 
-        // 视频（用相机图标代表）
         btnVideo = makeCircleIconButton(R.drawable.ic_camera_flip_outline_white, 64, 0xFF444444);
         btnVideo.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { toggleVideo(); }
@@ -369,14 +346,12 @@ topBar.addView(btnClose);
         gap2.setLayoutParams(new LinearLayout.LayoutParams(UiUtils.dp(this, 16), 1));
         bottomBar.addView(gap2);
 
-        // 屏幕共享
         btnScreen = makeCircleIconButton(R.drawable.ic_monitor_screenshot_white, 64, 0xFF444444);
         btnScreen.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { toggleScreenShare(); }
         });
         bottomBar.addView(btnScreen);
 
-        // 右侧竖排辅助按钮（切摄像头、手电筒）
         LinearLayout auxBox = new LinearLayout(this);
         auxBox.setOrientation(LinearLayout.VERTICAL);
         auxBox.setGravity(Gravity.END);
@@ -405,13 +380,11 @@ topBar.addView(btnClose);
         auxBox.addView(btnFlash);
 
         root.addView(auxBox);
-
         root.addView(bottomBar);
 
         setContentView(root);
     }
 
-    /** 通用圆形图标按钮（ImageView + 固定方形 + oval 背景） */
     private ImageView makeCircleIconButton(int resId, int sizeDp, int bgColor) {
         ImageView iv = new ImageView(this);
         iv.setImageResource(resId);
@@ -441,10 +414,9 @@ topBar.addView(btnClose);
     }
 
     // ============================================================
-    // 连接与断开
+    // 连接
     // ============================================================
 
-    /** 启动通话：连接 Realtime，然后按需开启麦克风 / 视频 */
     private void startCall(boolean wantVideo) {
         try {
             String[] cfg = RealtimeConfig.resolve(this);
@@ -469,14 +441,13 @@ topBar.addView(btnClose);
             String authStyle = RealtimeConfig.authStyleOf(
                     UiUtils.getStr(this, "realtime_provider", "glm-realtime"));
 
-            updateStatus("连接中…");
+            updateStatus(t("realtime_status_connecting", "连接中…"));
             realtime.connect(url, key, authStyle, protocol, new RealtimeClient.Listener() {
                 @Override public void onConnected() {
                     ui.post(new Runnable() { @Override public void run() {
                         connected = true;
-                        updateStatus("已连接");
+                        updateStatus(t("realtime_status_connected", "已连接"));
                         sendSessionUpdate();
-                        // 默认先开启麦克风
                         ui.postDelayed(new Runnable() {
                             @Override public void run() { if (alive && !micOn) toggleMic(); }
                         }, 600);
@@ -542,7 +513,6 @@ topBar.addView(btnClose);
                 }
             });
 
-            // 若初始就是视频模式，连接后自动开视频
             if (wantVideo) {
                 ui.postDelayed(new Runnable() {
                     @Override public void run() { if (alive && !videoOn) toggleVideo(); }
@@ -554,15 +524,15 @@ topBar.addView(btnClose);
         }
     }
 
-    /** 会话建立后发送 session.update */
     private void sendSessionUpdate() {
         if (realtime == null) return;
         try {
             String sysPrompt = UiUtils.getStr(this, "system_prompt", "");
             if (sysPrompt == null || sysPrompt.trim().length() == 0) {
-                sysPrompt = "你是一个运行在手机上的 AI 办公助手。用户会通过语音与你交流，"
-                        + "请用简洁自然的口语回答。当用户需要读取文件、联网搜索或操作手机时，"
-                        + "可以调用工具。当前是实时通话，回答不要太长。";
+                sysPrompt = t("realtime_system_prompt",
+                        "你是一个运行在手机上的 AI 办公助手。用户会通过语音与你交流，"
+                      + "请用简洁自然的口语回答。当用户需要读取文件、联网搜索或操作手机时，"
+                      + "可以调用工具。当前是实时通话，回答不要太长。");
             }
             realtime.updateSession(sessionModel, sessionVoice, sysPrompt, sessionTools);
         } catch (Throwable t) {}
@@ -587,19 +557,18 @@ topBar.addView(btnClose);
             stopMicInternal();
             setButtonTint(btnMic, 0xFF444444);
             if (btnMic != null) btnMic.setImageResource(R.drawable.ic_microphone_off_white);
-            updateStatus("麦克风已关闭");
+            updateStatus(t("realtime_status_mic_off", "麦克风已关闭"));
         } else {
             startMicInternal();
             setButtonTint(btnMic, 0xFF4A6CF7);
             if (btnMic != null) btnMic.setImageResource(R.drawable.ic_microphone_outline_white);
-            updateStatus("通话中");
+            updateStatus(t("realtime_status_in_call", "通话中"));
         }
         micOn = !micOn;
     }
 
     private void startMicInternal() {
         try {
-            // 优先级：24k（GLM 原生）→ 16k（多数设备都支持，重采样到 24k）→ 48k
             int[] candidates = new int[]{24000, 16000, 48000};
             int chosenRate = 0;
             for (int i = 0; i < candidates.length; i++) {
@@ -614,7 +583,6 @@ topBar.addView(btnClose);
                 Toast.makeText(this, "麦克风初始化失败（设备不支持 24k/16k/48k）", Toast.LENGTH_LONG).show();
                 return;
             }
-
             audioRecord.startRecording();
             audioRunning.set(true);
 
@@ -639,9 +607,7 @@ topBar.addView(btnClose);
                             }
                             String b64 = Base64.encodeToString(payload, Base64.NO_WRAP);
                             realtime.appendAudio(b64);
-                        } catch (Throwable t) {
-                            break;
-                        }
+                        } catch (Throwable t) { break; }
                     }
                 }
             }, "audio-read");
@@ -691,15 +657,12 @@ topBar.addView(btnClose);
                 }
                 audioTrack.play();
             }
-
             synchronized (audioPlayLock) {
                 if (audioTrack != null) {
                     audioTrack.write(pcm, 0, pcm.length);
                 }
             }
-        } catch (Throwable t) {
-            // 忽略播放错误，不中断通话
-        }
+        } catch (Throwable t) {}
     }
 
     private void stopAudioPlayback() {
@@ -722,7 +685,7 @@ topBar.addView(btnClose);
         if (videoOn) {
             stopVideoInternal();
             setButtonTint(btnVideo, 0xFF444444);
-            if (!screenShareOn) updateStatus("摄像头已关闭");
+            if (!screenShareOn) updateStatus(t("realtime_status_cam_off", "摄像头已关闭"));
         } else {
             if (Build.VERSION.SDK_INT >= 23
                     && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -731,7 +694,7 @@ topBar.addView(btnClose);
             }
             startVideoInternal();
             setButtonTint(btnVideo, 0xFF4A6CF7);
-            updateStatus("视频已开启");
+            updateStatus(t("realtime_status_cam_on", "视频已开启"));
         }
         videoOn = !videoOn;
     }
@@ -823,7 +786,6 @@ topBar.addView(btnClose);
         showAuxButtons(false);
     }
 
-    /** 通用：把 JPEG 缩放后转 base64 */
     private String compressJpeg(byte[] jpeg, int maxPx, int quality) {
         try {
             BitmapFactory.Options o = new BitmapFactory.Options();
@@ -837,7 +799,6 @@ topBar.addView(btnClose);
             Bitmap bmp = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, o2);
             if (bmp == null) return null;
 
-            // 前置摄像头默认横向，旋转 270 度
             try {
                 if (currentCameraId == 1) {
                     Matrix m = new Matrix();
@@ -924,7 +885,7 @@ topBar.addView(btnClose);
         if (screenShareOn) {
             stopScreenShareInternal();
             setButtonTint(btnScreen, 0xFF444444);
-            updateStatus("屏幕共享已停止");
+            updateStatus(t("realtime_status_screen_off", "屏幕共享已停止"));
             screenShareOn = false;
         } else {
             if (!ProjectionController.isReady()) {
@@ -940,7 +901,7 @@ topBar.addView(btnClose);
             }
             startScreenShareInternal();
             setButtonTint(btnScreen, 0xFF4A6CF7);
-            updateStatus("屏幕共享中");
+            updateStatus(t("realtime_status_screen_on", "屏幕共享中"));
             screenShareOn = true;
         }
     }
@@ -1024,7 +985,6 @@ topBar.addView(btnClose);
         } catch (Throwable t) {}
     }
 
-    /** 复用 MainActivity 的工具分发逻辑 */
     private String runToolInternal(String tool, String args) {
         try {
             if (tool == null) return "未知工具";
@@ -1055,23 +1015,16 @@ topBar.addView(btnClose);
         try { stopScreenShareInternal(); } catch (Throwable t) {}
         try { stopAudioPlayback(); } catch (Throwable t) {}
         try { if (realtime != null) realtime.close(); } catch (Throwable t) {}
-        try {
-            if (videoHandler != null) videoHandler.removeCallbacksAndMessages(null);
-        } catch (Throwable t) {}
-        try {
-            if (screenHandler != null) screenHandler.removeCallbacksAndMessages(null);
-        } catch (Throwable t) {}
-        try {
-            if (ui != null) ui.removeCallbacksAndMessages(null);
-        } catch (Throwable t) {}
+        try { if (videoHandler != null) videoHandler.removeCallbacksAndMessages(null); } catch (Throwable t) {}
+        try { if (screenHandler != null) screenHandler.removeCallbacksAndMessages(null); } catch (Throwable t) {}
+        try { if (ui != null) ui.removeCallbacksAndMessages(null); } catch (Throwable t) {}
         super.onDestroy();
     }
 
     // ============================================================
-    // 音频重采样（16k/48k → 24k）
+    // 音频重采样
     // ============================================================
 
-    /** 简易线性插值重采样：把 src 从 srcRate 重采样到 dstRate。inPcm 为 int16 小端 */
     private static byte[] resamplePcm16(byte[] inPcm, int srcRate, int dstRate) {
         if (inPcm == null || inPcm.length < 4) return inPcm;
         if (srcRate == dstRate) return inPcm;
@@ -1099,7 +1052,6 @@ topBar.addView(btnClose);
         } catch (Throwable t) { return inPcm; }
     }
 
-    /** 尝试按给定采样率初始化 AudioRecord；失败返回 null */
     private AudioRecord tryOpenMic(int rate) {
         try {
             int minBuf = AudioRecord.getMinBufferSize(rate, CHANNEL_CONFIG, AUDIO_FORMAT);

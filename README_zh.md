@@ -6,7 +6,7 @@
 
 ## 亮点
 
-- 安装包 323.07 KB —— 大部分 AI 类 App 动辄数十 MB，Ai Office 把它压缩到不到 0.35 MB
+- 安装包 347.65 KB —— 大部分 AI 类 App 动辄数十 MB，Ai Office 把它压缩到不到 0.35 MB
 - 零第三方依赖 —— 不用 OkHttp、不用 Gson、不用 AndroidX、不用 Material Design，所有代码基于 Android 系统原生 API
 - 纯 Java + 动态构建 UI —— 布局文件只放骨架，所有界面运行时构建
 - AIDE 兼容 —— 可在手机上直接编译和修改
@@ -84,6 +84,7 @@ AI 可以通过系统无障碍服务操作其他 App：
 - 深色 / 浅色 / 跟随系统 三种主题
 - 字体缩放：小 / 标准 / 大 / 特大 / 超大
 - Markdown 渲染：标题、列表、表格、引用、代码块、链接
+- 多语言：内置简体中文 / English；可导入自定义语言包（JSON）扩展更多语言；可导出当前语言包作为翻译模板
 
 ## 技术栈
 
@@ -179,6 +180,7 @@ app/src/main/java/com/ai/office/
 - RealtimeClient.java            # Realtime 事件封装
 - WebSocketClient.java           # 手写 RFC6455 WebSocket 客户端
 - WebViewActivity.java           # 内置浏览器
+- LanguageManager.java          # 语言包加载（自定义 / assets / 内置兜底）
 - UiUtils.java                   # 工具类
 
 ## 插件示例
