@@ -53,7 +53,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- AI 与模型 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -65,6 +64,7 @@
                 android:textSize="13sp" />
 
             <LinearLayout
+                android:id="@+id/cardAi"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_bg"
@@ -114,9 +114,23 @@
                     <TextView android:id="@+id/tvSearchState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:maxWidth="140dp" android:singleLine="true" android:text="" android:textColor="@color/md_outline" android:textSize="13sp" />
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
                 </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/rowImageGen"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="16dp"
+                    android:paddingRight="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="文生图" android:textColor="@color/md_on_surface" android:textSize="15sp" />
+                    <TextView android:id="@+id/tvImageGenState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:maxWidth="140dp" android:singleLine="true" android:text="" android:textColor="@color/md_outline" android:textSize="13sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
+                </LinearLayout>
             </LinearLayout>
 
-            <!-- 语音 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -128,6 +142,7 @@
                 android:textSize="13sp" />
 
             <LinearLayout
+                android:id="@+id/cardVoice"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_bg"
@@ -164,7 +179,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 应用 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -176,6 +190,7 @@
                 android:textSize="13sp" />
 
             <LinearLayout
+                android:id="@+id/cardApp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_bg"
@@ -227,6 +242,21 @@
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/rowExperimental"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="16dp"
+                    android:paddingRight="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="实验性功能" android:textColor="@color/md_on_surface" android:textSize="15sp" />
+                    <TextView android:id="@+id/tvExperimentalState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:maxWidth="140dp" android:singleLine="true" android:text="" android:textColor="@color/md_outline" android:textSize="13sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/rowToggle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -241,7 +271,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 数据 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -253,6 +282,7 @@
                 android:textSize="13sp" />
 
             <LinearLayout
+                android:id="@+id/cardData"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_bg"
@@ -304,7 +334,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 系统 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -316,6 +345,7 @@
                 android:textSize="13sp" />
 
             <LinearLayout
+                android:id="@+id/cardSystem"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_bg"
@@ -346,6 +376,21 @@
                     android:paddingTop="14dp"
                     android:paddingBottom="14dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="余额查询" android:textColor="@color/md_on_surface" android:textSize="15sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/rowAbout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="16dp"
+                    android:paddingRight="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="关于" android:textColor="@color/md_on_surface" android:textSize="15sp" />
+                    <TextView android:id="@+id/tvAboutState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="v1.3.0" android:textColor="@color/md_outline" android:textSize="13sp" />
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="6dp" android:text="›" android:textColor="@color/md_outline" android:textSize="20sp" />
                 </LinearLayout>
             </LinearLayout>

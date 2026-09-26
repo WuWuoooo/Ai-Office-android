@@ -9,12 +9,9 @@ import android.widget.Toast;
 
 import java.util.List;
 
-/**
- * 设置首页：分类卡片列表。
- * 每一行点击后跳转到 SettingsDetailActivity，通过 EXTRA_CATEGORY 指定分类。
- * 从二级页返回时 onResume 会刷新每行的状态值。
- */
 public class SettingsActivity extends BaseActivity {
+
+    private String t(String key, String def) { return LanguageManager.t(this, key, def); }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,9 +26,9 @@ public class SettingsActivity extends BaseActivity {
                 });
             }
 
-            // 设置页顶栏标题与分组标题
-            TextView tvTitle = findViewById(android.R.id.content) != null ? null : null;
             applyStaticTexts();
+            applyStaticTexts();
+            applyGlassToCards();
 
             setupRow(R.id.rowAi, "ai");
             setupRow(R.id.rowVision, "vision");
@@ -41,54 +38,74 @@ public class SettingsActivity extends BaseActivity {
             setupRow(R.id.rowGenerate, "generate");
             setupRow(R.id.rowAppearance, "appearance");
             setupRow(R.id.rowLanguage, "language");
+            setupRow(R.id.rowExperimental, "experimental");
             setupRow(R.id.rowToggle, "toggle");
             setupRow(R.id.rowMemory, "memory");
             setupRow(R.id.rowPrompt, "prompt");
             setupRow(R.id.rowPlugin, "plugin");
             setupRow(R.id.rowPermission, "permission");
             setupRow(R.id.rowBalance, "balance");
+setupRow(R.id.rowAbout, "about");
+setupRow(R.id.rowImageGen, "imagegen");
         } catch (Throwable t) {
             Toast.makeText(this, "Settings load failed: " + t.getMessage(), Toast.LENGTH_LONG).show();
             finish();
         }
     }
 
-    /** 应用静态文案（标题 / 分组 / 行标题），支持语言包 */
     private void applyStaticTexts() {
         try {
             final Context ctx = this;
-            // 顶部标题
             TextView title = findTitleView();
-            if (title != null) title.setText(LanguageManager.t(ctx, "settings", "设置"));
+            if (title != null) title.setText(t("settings", "设置"));
 
-            // 分组标题
-            setTextById(findViewByText("AI 与模型"), LanguageManager.t(ctx, "settings_section_ai", "AI 与模型"));
-            setTextById(findViewByText("语音"), LanguageManager.t(ctx, "settings_section_voice", "语音"));
-            setTextById(findViewByText("应用"), LanguageManager.t(ctx, "settings_section_app", "应用"));
-            setTextById(findViewByText("数据"), LanguageManager.t(ctx, "settings_section_data", "数据"));
-            setTextById(findViewByText("系统"), LanguageManager.t(ctx, "settings_section_system", "系统"));
+            setTextById(findViewByText("AI 与模型"), t("settings_section_ai", "AI 与模型"));
+            setTextById(findViewByText("语音"), t("settings_section_voice", "语音"));
+            setTextById(findViewByText("应用"), t("settings_section_app", "应用"));
+            setTextById(findViewByText("数据"), t("settings_section_data", "数据"));
+            setTextById(findViewByText("系统"), t("settings_section_system", "系统"));
 
-            // 行标题
-            setTextById(findViewInRow(R.id.rowAi), LanguageManager.t(ctx, "settings_row_ai", "AI 接入"));
-            setTextById(findViewInRow(R.id.rowVision), LanguageManager.t(ctx, "settings_row_vision", "识图 API"));
-            setTextById(findViewInRow(R.id.rowSearch), LanguageManager.t(ctx, "settings_row_search", "联网搜索"));
-            setTextById(findViewInRow(R.id.rowTts), LanguageManager.t(ctx, "settings_row_tts", "语音合成 TTS"));
-            setTextById(findViewInRow(R.id.rowRealtime), LanguageManager.t(ctx, "settings_row_realtime", "实时通话"));
-            setTextById(findViewInRow(R.id.rowGenerate), LanguageManager.t(ctx, "settings_row_generate", "生成行为"));
-            setTextById(findViewInRow(R.id.rowAppearance), LanguageManager.t(ctx, "settings_row_appearance", "外观"));
-            setTextById(findViewInRow(R.id.rowLanguage), LanguageManager.t(ctx, "settings_row_language", "语言"));
-            setTextById(findViewInRow(R.id.rowToggle), LanguageManager.t(ctx, "settings_row_toggle", "功能开关"));
-            setTextById(findViewInRow(R.id.rowMemory), LanguageManager.t(ctx, "settings_row_memory", "长期记忆"));
-            setTextById(findViewInRow(R.id.rowPrompt), LanguageManager.t(ctx, "settings_row_prompt", "系统提示词"));
-            setTextById(findViewInRow(R.id.rowPlugin), LanguageManager.t(ctx, "settings_row_plugin", "插件"));
-            setTextById(findViewInRow(R.id.rowPermission), LanguageManager.t(ctx, "settings_row_permission", "权限"));
-            setTextById(findViewInRow(R.id.rowBalance), LanguageManager.t(ctx, "settings_row_balance", "余额查询"));
+            setTextById(findViewInRow(R.id.rowAi), t("settings_row_ai", "AI 接入"));
+            setTextById(findViewInRow(R.id.rowVision), t("settings_row_vision", "识图 API"));
+            setTextById(findViewInRow(R.id.rowSearch), t("settings_row_search", "联网搜索"));
+            setTextById(findViewInRow(R.id.rowTts), t("settings_row_tts", "语音合成 TTS"));
+            setTextById(findViewInRow(R.id.rowRealtime), t("settings_row_realtime", "实时通话"));
+            setTextById(findViewInRow(R.id.rowGenerate), t("settings_row_generate", "生成行为"));
+            setTextById(findViewInRow(R.id.rowAppearance), t("settings_row_appearance", "外观"));
+            setTextById(findViewInRow(R.id.rowLanguage), t("settings_row_language", "语言"));
+            setTextById(findViewInRow(R.id.rowExperimental), t("settings_row_experimental", "实验性功能"));
+            setTextById(findViewInRow(R.id.rowToggle), t("settings_row_toggle", "功能开关"));
+            setTextById(findViewInRow(R.id.rowMemory), t("settings_row_memory", "长期记忆"));
+            setTextById(findViewInRow(R.id.rowPrompt), t("settings_row_prompt", "系统提示词"));
+            setTextById(findViewInRow(R.id.rowPlugin), t("settings_row_plugin", "插件"));
+            setTextById(findViewInRow(R.id.rowPermission), t("settings_row_permission", "权限"));
+setTextById(findViewInRow(R.id.rowBalance), t("settings_row_balance", "余额查询"));
+setTextById(findViewInRow(R.id.rowAbout), t("settings_row_about", "关于"));
+setTextById(findViewInRow(R.id.rowImageGen), t("settings_row_image_gen", "文生图"));
         } catch (Throwable t) {}
     }
 
+private void applyGlassToCards() {
+    try {
+        if (!UiOverrides.glassEnabled(this)) return;
+        int[] ids = new int[]{R.id.cardAi, R.id.cardVoice, R.id.cardApp, R.id.cardData, R.id.cardSystem};
+        for (int i = 0; i < ids.length; i++) {
+            final View v = findViewById(ids[i]);
+            if (v == null) continue;
+            v.post(new Runnable() {
+                @Override public void run() {
+                    try {
+                        android.graphics.drawable.Drawable d = UiOverrides.cardBgDrawable(SettingsActivity.this, v);
+                        if (d != null) v.setBackgroundDrawable(d);
+                    } catch (Throwable t) {}
+                }
+            });
+        }
+    } catch (Throwable t) {}
+}
+
     private TextView findTitleView() {
         try {
-            // 标题是在 activity_settings.xml 中居中的那个 TextView，无 id
             android.view.ViewGroup root = (android.view.ViewGroup) findViewById(android.R.id.content);
             if (root == null) return null;
             android.view.ViewGroup outer = (android.view.ViewGroup) root.getChildAt(0);
@@ -140,9 +157,7 @@ public class SettingsActivity extends BaseActivity {
     }
 
     private void setTextById(View v, String text) {
-        try {
-            if (v instanceof TextView) ((TextView) v).setText(text);
-        } catch (Throwable t) {}
+        try { if (v instanceof TextView) ((TextView) v).setText(text); } catch (Throwable t) {}
     }
 
     private void setupRow(int rowId, final String category) {
@@ -156,30 +171,31 @@ public class SettingsActivity extends BaseActivity {
                     startActivity(it);
                 } catch (Throwable t) {
                     Toast.makeText(SettingsActivity.this,
-                            LanguageManager.t(SettingsActivity.this, "err_no_open_settings", "无法打开设置: ") + t.getMessage(),
+                            t("err_no_open_settings", "无法打开设置: ") + t.getMessage(),
                             Toast.LENGTH_SHORT).show();
                 }
             }
         });
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        applyStaticTexts();
-        refreshAllStates();
-    }
+@Override
+protected void onResume() {
+    super.onResume();
+    applyStaticTexts();
+    applyGlassToCards();
+    refreshAllStates();
+}
 
     private void refreshAllStates() {
         try {
             final Context ctx = this;
             setText(R.id.tvAiState, shortText(UiUtils.getStr(this, "model", "deepseek-flash"), ""));
-            setText(R.id.tvVisionState, shortText(UiUtils.getStr(this, "vision_model", ""),
-                    LanguageManager.t(ctx, "ai_unset", "未设置")));
+            setText(R.id.tvVisionState, shortText(UiUtils.getStr(this, "vision_model", ""), t("ai_unset", "未设置")));
             setText(R.id.tvSearchState, SearchProvider.nameOf(UiUtils.getStr(this, "search_provider", "bing")));
+setText(R.id.tvImageGenState, ImageGenConfig.nameOf(UiUtils.getStr(this, "image_gen_provider", "zhipu")));
 
             boolean ttsOn = UiUtils.getBool(this, "tts_enabled", false);
-            setText(R.id.tvTtsState, ttsOn ? "已开启" : "已关闭");
+            setText(R.id.tvTtsState, ttsOn ? t("toggle_script_on_short", "已开启") : t("toggle_script_off_short", "已关闭"));
 
             String rtProvider = UiUtils.getStr(this, "realtime_provider", "glm-realtime");
             setText(R.id.tvRealtimeState, RealtimeConfig.nameOf(rtProvider));
@@ -187,25 +203,28 @@ public class SettingsActivity extends BaseActivity {
             setText(R.id.tvGenerateState, thinkingShortLabel());
             setText(R.id.tvAppearanceState, themeShortLabel());
             setText(R.id.tvLanguageState, languageStateLabel());
+            setText(R.id.tvExperimentalState, UiOverrides.glassEnabled(this)
+                    ? t("experimental_on", "毛玻璃已开")
+                    : t("experimental_off", "已关闭"));
 
             try {
                 int n = MemoryStore.getAllKeys(this).size();
-                setText(R.id.tvMemoryState, n + " 条");
+                setText(R.id.tvMemoryState, n + " " + t("memory_count_unit", "条"));
             } catch (Throwable t) {
-                setText(R.id.tvMemoryState, "0 条");
+                setText(R.id.tvMemoryState, "0 " + t("memory_count_unit", "条"));
             }
 
             String sp = UiUtils.getStr(this, "system_prompt", "");
             setText(R.id.tvPromptState, (sp == null || sp.length() == 0)
-                    ? LanguageManager.t(ctx, "prompt_default", "默认")
-                    : LanguageManager.t(ctx, "prompt_custom", "已自定义"));
+                    ? t("prompt_default", "默认")
+                    : t("prompt_custom", "已自定义"));
 
             try {
                 int aiCount = PluginManager.loadPlugins(this).size();
                 int uiCount = PluginManager.loadUiPlugins(this).size();
                 int total = aiCount + uiCount;
                 setText(R.id.tvPluginState, total == 0
-                        ? LanguageManager.t(ctx, "plugin_override_none", "无")
+                        ? t("plugin_override_none", "无")
                         : (total + ""));
             } catch (Throwable t) {
                 setText(R.id.tvPluginState, "");
@@ -233,17 +252,16 @@ public class SettingsActivity extends BaseActivity {
     private String thinkingShortLabel() {
         final Context ctx = this;
         String cur = UiUtils.getStr(this, "thinking_effort", "");
-        if (cur == null || cur.length() == 0) return LanguageManager.t(ctx, "gen_thinking_default", "默认");
-        if ("none".equals(cur)) return LanguageManager.t(ctx, "gen_thinking_off", "关闭思考");
+        if (cur == null || cur.length() == 0) return t("gen_thinking_default", "默认");
+        if ("none".equals(cur)) return t("gen_thinking_off", "关闭思考");
         return cur;
     }
 
     private String themeShortLabel() {
-        final Context ctx = this;
         String cur = UiUtils.getStr(this, "theme_style", "system");
-        if ("light".equals(cur)) return LanguageManager.t(ctx, "appearance_theme_light", "浅色");
-        if ("dark".equals(cur)) return LanguageManager.t(ctx, "appearance_theme_dark", "深色");
-        return LanguageManager.t(ctx, "appearance_theme_system", "跟随系统");
+        if ("light".equals(cur)) return t("appearance_theme_light", "浅色");
+        if ("dark".equals(cur)) return t("appearance_theme_dark", "深色");
+        return t("appearance_theme_system", "跟随系统");
     }
 
     private String languageStateLabel() {

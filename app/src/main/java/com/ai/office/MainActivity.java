@@ -130,10 +130,8 @@ public class MainActivity extends BaseActivity {
         String id; String name; String args; String result;
     }
 
-    /** 短写：把 key 翻译成当前语言，找不到就回退到中文默认值 */
     private String t(String key, String def) { return LanguageManager.t(this, key, def); }
 
-    /** Toast 使用当前语言文案 */
     private void toast(String key, String def) {
         try { Toast.makeText(this, t(key, def), Toast.LENGTH_SHORT).show(); } catch (Throwable th) {}
     }
@@ -174,7 +172,6 @@ public class MainActivity extends BaseActivity {
                 });
             }
 
-            // 应用本地化文本到 XML 中的静态文案
             applyUiTexts();
 
             fileExecutor = new FileToolExecutor(this);
@@ -227,10 +224,8 @@ public class MainActivity extends BaseActivity {
         }
     }
 
-    /** 把 XML 中写死的文案替换为当前语言 */
     private void applyUiTexts() {
         try {
-            // 欢迎语
             if (layoutWelcome != null && layoutWelcome.getChildCount() >= 3) {
                 View v0 = layoutWelcome.getChildAt(0);
                 if (v0 instanceof TextView) ((TextView) v0).setText(t("main_welcome_title", "你好，我能帮什么忙吗？"));
@@ -243,7 +238,6 @@ public class MainActivity extends BaseActivity {
             if (btnSend != null && !isGenerating) btnSend.setText(t("main_send", "发送"));
             if (etSessionSearch != null) etSessionSearch.setHint(t("main_search_session", "搜索对话"));
 
-            // 抽屉标题行 + 新建对话 + 提示
             View btnMore = findViewById(R.id.btnMore);
             if (btnMore != null && btnMore.getParent() instanceof LinearLayout) {
                 LinearLayout row = (LinearLayout) btnMore.getParent();
@@ -254,7 +248,6 @@ public class MainActivity extends BaseActivity {
             View btnNewChat = findViewById(R.id.btnNewChat);
             if (btnNewChat instanceof TextView) ((TextView) btnNewChat).setText(t("main_new_chat", "+ 新建对话"));
 
-            // 抽屉底部提示（在 llHistoryList 的 ScrollView 的兄弟里）
             View llHist = findViewById(R.id.llHistoryList);
             if (llHist != null && llHist.getParent() instanceof View) {
                 View sv = (View) llHist.getParent();
@@ -275,7 +268,6 @@ public class MainActivity extends BaseActivity {
                 }
             }
 
-            // 移除图片按钮
             View btnRemoveImage = findViewById(R.id.btnRemoveImage);
             if (btnRemoveImage instanceof TextView) ((TextView) btnRemoveImage).setText(t("main_remove_image", "移除图片"));
         } catch (Throwable t) {}
@@ -314,34 +306,39 @@ public class MainActivity extends BaseActivity {
         } catch (Throwable t) {}
     }
 
-    @Override
-    protected void applySystemBars() {
+@Override
+protected void applySystemBars() {
+    try {
+        boolean night = UiUtils.isNight(this);
         try {
-            boolean night = UiUtils.isNight(this);
-            try {
-                getWindow().setSoftInputMode(
-                        android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-                      | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED);
-            } catch (Throwable t) {}
-
-            if (Build.VERSION.SDK_INT >= 21) {
-                getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
-                getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-                View dv = getWindow().getDecorView();
-                int flags = dv.getSystemUiVisibility();
-                flags |= View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-                flags |= View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-                flags &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
-                if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-                else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-                if (Build.VERSION.SDK_INT >= 26) {
-                    if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-                    else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-                }
-                dv.setSystemUiVisibility(flags);
-            }
+            getWindow().setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                  | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED);
         } catch (Throwable t) {}
-    }
+
+        if (Build.VERSION.SDK_INT >= 21) {
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+            View dv = getWindow().getDecorView();
+            int flags = dv.getSystemUiVisibility();
+            flags |= View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+            flags |= View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+            flags &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+            if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (Build.VERSION.SDK_INT >= 26) {
+                if (night) flags = flags & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                else flags = flags | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+            dv.setSystemUiVisibility(flags);
+        }
+
+        // ★ API 30+：真正 edge-to-edge
+        if (Build.VERSION.SDK_INT >= 30) {
+            try { getWindow().setDecorFitsSystemWindows(false); } catch (Throwable t) {}
+        }
+    } catch (Throwable t) {}
+}
 
     private void applyTopbarIcons() {
         try {
@@ -353,46 +350,90 @@ public class MainActivity extends BaseActivity {
             if (tvTitle != null) tvTitle.setTextColor(UiOverrides.onSurface(this));
         } catch (Throwable t) {}
     }
+    
+private void applyRootInsets() {
+    final View root = findViewById(R.id.llMainRoot);
+    if (root == null) return;
+    // post 保证 root 已 attach 到窗口，insets 才是有效值
+    root.post(new Runnable() {
+        @Override public void run() {
+            try {
+                int gap = UiUtils.dp(MainActivity.this, 8);
+                int[] bars = getSystemBarInsets(root);
+                root.setPadding(bars[0], 0, bars[2], bars[3] + gap);
+            } catch (Throwable t) {}
+        }
+    });
+}
 
-    private void applyRootInsets() {
-        try {
-            View root = findViewById(R.id.llMainRoot);
-            if (root == null) return;
-            int navH = getSystemBarDimen("navigation_bar_height");
-            root.setPadding(0, 0, 0, navH);
-        } catch (Throwable t) {}
+private int[] getSystemBarInsets(View root) {
+    int L = 0, T = 0, R = 0, B = 0;
+    boolean got = false;
+    try {
+        if (Build.VERSION.SDK_INT >= 30 && root != null) {
+            android.view.WindowInsets ins = root.getRootWindowInsets();
+            if (ins != null) {
+                android.graphics.Insets bars = ins.getInsets(android.view.WindowInsets.Type.systemBars());
+                L = bars.left; T = bars.top; R = bars.right; B = bars.bottom;
+                got = (L > 0 || T > 0 || R > 0 || B > 0);
+            }
+        }
+        if (!got && Build.VERSION.SDK_INT >= 20 && root != null) {
+            android.view.WindowInsets ins = root.getRootWindowInsets();
+            if (ins != null) {
+                L = ins.getSystemWindowInsetLeft();
+                T = ins.getSystemWindowInsetTop();
+                R = ins.getSystemWindowInsetRight();
+                B = ins.getSystemWindowInsetBottom();
+                got = (L > 0 || T > 0 || R > 0 || B > 0);
+            }
+        }
+    } catch (Throwable t) {}
+    if (!got) {
+        int navH = getSystemBarDimen("navigation_bar_height");
+        int statH = getSystemBarDimen("status_bar_height");
+        int rot = 0;
+        try { rot = getWindowManager().getDefaultDisplay().getRotation(); } catch (Throwable t) {}
+        if (rot == android.view.Surface.ROTATION_90) R = navH;
+        else if (rot == android.view.Surface.ROTATION_270) L = navH;
+        else B = navH;
+        T = statH;
     }
+    return new int[]{L, T, R, B};
+}
 
-    private void setupKeyboardResize() {
-        try {
-            final View root = findViewById(R.id.llMainRoot);
-            if (root == null) return;
-            root.getViewTreeObserver().addOnGlobalLayoutListener(
-                    new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                private int lastKb = 0;
-                @Override public void onGlobalLayout() {
-                    try {
-                        android.graphics.Rect r = new android.graphics.Rect();
-                        root.getWindowVisibleDisplayFrame(r);
-                        int screenH = root.getRootView().getHeight();
-                        int visibleBottom = r.bottom;
-                        int hidden = screenH - visibleBottom;
-                        int navH = getSystemBarDimen("navigation_bar_height");
-                        int kb = hidden - navH;
-                        if (kb < 100) kb = 0;
-                        if (kb != lastKb) {
-                            lastKb = kb;
-                            int bottomPad = (kb > 0) ? kb : getSystemBarDimen("navigation_bar_height");
-                            root.setPadding(root.getPaddingLeft(),
-                                            root.getPaddingTop(),
-                                            root.getPaddingRight(),
-                                            bottomPad);
-                        }
-                    } catch (Throwable t) {}
+private void setupKeyboardResize() {
+    final View root = findViewById(R.id.llMainRoot);
+    if (root == null) return;
+    final int gap = UiUtils.dp(this, 8);
+    root.getViewTreeObserver().addOnGlobalLayoutListener(
+            new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+        private int lastKb = 0;
+        private int lastL = -1, lastR = -1, lastB = -1;
+        @Override public void onGlobalLayout() {
+            try {
+                android.graphics.Rect r = new android.graphics.Rect();
+                root.getWindowVisibleDisplayFrame(r);
+                int screenH = root.getRootView().getHeight();
+                int visibleBottom = r.bottom;
+                int hidden = screenH - visibleBottom;
+
+                int[] bars = getSystemBarInsets(root);
+                int navL = bars[0], navR = bars[2], navB = bars[3];
+
+                int kb = hidden - navB;
+                if (kb < 100) kb = 0;
+
+                int B = (kb > 0) ? (kb + gap) : (navB + gap);
+
+                if (kb != lastKb || navL != lastL || navR != lastR || B != lastB) {
+                    lastKb = kb; lastL = navL; lastR = navR; lastB = B;
+                    root.setPadding(navL, 0, navR, B);
                 }
-            });
-        } catch (Throwable t) {}
-    }
+            } catch (Throwable t) {}
+        }
+    });
+}
 
     private void applyDrawerInsets() {
         try {
@@ -430,14 +471,15 @@ public class MainActivity extends BaseActivity {
         try { applyUiTexts(); } catch (Throwable t) {}
     }
 
-    private void refreshTools() {
-        try {
-            tools = AiClient.buildTools(
-                    UiUtils.getBool(this, "allow_shell_tool", false),
-                    UiUtils.getBool(this, "allow_accessibility_tool", false));
-            try { PluginManager.registerTools(this, tools); } catch (Throwable t) {}
-        } catch (Throwable t) {}
-    }
+private void refreshTools() {
+    try {
+        tools = AiClient.buildTools(
+                UiUtils.getBool(this, "allow_shell_tool", false),
+                UiUtils.getBool(this, "allow_accessibility_tool", false),
+                true);
+        try { PluginManager.registerTools(this, tools); } catch (Throwable t) {}
+    } catch (Throwable t) {}
+}
 
     @Override protected void onPause() {
         super.onPause();
@@ -649,29 +691,41 @@ public class MainActivity extends BaseActivity {
         } catch (Throwable t) {}
     }
 
-    private void showModelPicker() {
-        try {
-            final String[] models = modelPresets();
-            if (models.length <= 1) return;
-            new AlertDialog.Builder(this)
-                    .setTitle(t("model_picker_title", "选择模型"))
-                    .setItems(models, new DialogInterface.OnClickListener() {
-                        @Override public void onClick(DialogInterface d, int which) {
-                            switchModel(models[which]);
-                            d.dismiss();
-                        }
-                    })
-                    .setNeutralButton(t("model_picker_go_settings", "去设置里编辑"), new DialogInterface.OnClickListener() {
-                        @Override public void onClick(DialogInterface d, int which) {
-                            startActivity(new Intent(MainActivity.this, SettingsActivity.class));
-                            d.dismiss();
-                        }
-                    })
-                    .setNegativeButton(t("common_cancel", "取消"), null).create().show();
-        } catch (Throwable t) {
-            toast("model_no_picker", "无法打开模型列表");
+private void showModelPicker() {
+    try {
+        final String[] models = modelPresets();
+        if (models.length <= 1) return;
+        final String editLabel = t("model_picker_go_settings", "去设置里编辑");
+
+        String[] items = new String[models.length + 1];
+        String[] trailing = new String[models.length + 1];
+        System.arraycopy(models, 0, items, 0, models.length);
+        items[models.length] = editLabel;
+
+        String cur = UiUtils.getStr(this, "model", "");
+        if (cur == null) cur = "";
+        cur = cur.trim();
+        for (int i = 0; i < models.length; i++) {
+            trailing[i] = models[i].equals(cur) ? "✓" : "";
         }
+        trailing[models.length] = "›";
+
+        View anchor = findViewById(R.id.btnModel);
+
+        GlassMenuDialog.showCompactItemsAt(this, anchor,
+                t("model_picker_title", "选择模型"),
+                items, trailing,
+                new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        if (which < models.length) switchModel(models[which]);
+                        else startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                    }
+                });
+    } catch (Throwable t) {
+        toast("model_no_picker", "无法打开模型列表");
     }
+}
 
     private void switchModel(String model) {
         try {
@@ -679,8 +733,6 @@ public class MainActivity extends BaseActivity {
             UiUtils.prefs(this).edit().putString("model", model.trim()).apply();
             if (aiClient != null) aiClient.setModel(model.trim());
             updateModelLabel();
-            toast("model_switched", "已切换到 ") ;
-            // 用更完整的拼接
             Toast.makeText(this, t("model_switched", "已切换到 ") + model.trim(), Toast.LENGTH_SHORT).show();
         } catch (Throwable t) {}
     }
@@ -1077,8 +1129,12 @@ public class MainActivity extends BaseActivity {
             item.setOrientation(LinearLayout.VERTICAL);
             item.setPadding(UiUtils.dp(this, 14), UiUtils.dp(this, 12),
                             UiUtils.dp(this, 14), UiUtils.dp(this, 12));
-            if (isCurrent) item.setBackgroundResource(R.drawable.session_item_active_bg);
-            else item.setBackgroundResource(R.drawable.session_item_bg);
+            if (UiOverrides.glassEnabled(this)) {
+                item.setBackgroundDrawable(UiOverrides.glassItemBgDrawable(this, isCurrent));
+            } else {
+                if (isCurrent) item.setBackgroundResource(R.drawable.session_item_active_bg);
+                else item.setBackgroundResource(R.drawable.session_item_bg);
+            }
             LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             ilp.setMargins(UiUtils.dp(this, 4), UiUtils.dp(this, 2),
@@ -1126,9 +1182,8 @@ public class MainActivity extends BaseActivity {
                 t("session_menu_export", "导出为 Markdown"),
                 t("session_menu_share", "分享全文"),
                 t("session_menu_delete", "删除")};
-        new AlertDialog.Builder(this)
-                .setTitle(UiUtils.optStr(s, "title"))
-                .setItems(items, new DialogInterface.OnClickListener() {
+        GlassMenuDialog.showItems(this, UiUtils.optStr(s, "title"), items,
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         if (which == 0) switchSession(index);
@@ -1137,8 +1192,7 @@ public class MainActivity extends BaseActivity {
                         else if (which == 3) shareSessionByIndex(index);
                         else if (which == 4) confirmDeleteSession(index);
                     }
-                })
-                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
+                });
     }
 
     private void renameSession(final int index) {
@@ -1149,7 +1203,7 @@ public class MainActivity extends BaseActivity {
         et.setSelection(et.getText().length());
         et.setTextSize(15);
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10), UiUtils.dp(this, 12), UiUtils.dp(this, 10));
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(t("session_rename_title", "重命名对话"))
                 .setView(et)
                 .setPositiveButton(t("common_save", "保存"), new DialogInterface.OnClickListener() {
@@ -1164,7 +1218,8 @@ public class MainActivity extends BaseActivity {
                         d.dismiss();
                     }
                 })
-                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null)
+                .show();
     }
 
     private void switchSession(int index) {
@@ -1226,11 +1281,33 @@ public class MainActivity extends BaseActivity {
             }
             if (target == null) return;
 
-            String path = UiUtils.getStr(this, "chat_bg_path", "");
-            if (path == null || path.length() == 0) {
-                target.setBackgroundDrawable(null);
-                return;
-            }
+String path = UiUtils.getStr(this, "chat_bg_path", "");
+if (path == null || path.length() == 0) {
+    // 无背景图：给一个柔和渐变，保证玻璃元素有"底"可透
+    if (UiOverrides.glassEnabled(this)) {
+        android.graphics.drawable.GradientDrawable gd =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                        UiUtils.isNight(this)
+                            ? new int[]{0xFF1A1E2A, 0xFF0F1218, 0xFF1A1E2A}
+                            : new int[]{0xFFF0F4FF, 0xFFE8EEF8, 0xFFF5F0FA});
+        target.setBackgroundDrawable(gd);
+        // 给 helper 一张渐变 Bitmap 做 backdrop source
+        try {
+            int sw = getResources().getDisplayMetrics().widthPixels;
+            int sh = getResources().getDisplayMetrics().heightPixels;
+            Bitmap grad = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas cv = new android.graphics.Canvas(grad);
+            gd.setBounds(0, 0, sw, sh);
+            gd.draw(cv);
+            BackdropBlurHelper.setScreenBackground(grad);
+        } catch (Throwable t) {}
+    } else {
+        target.setBackgroundDrawable(null);
+        BackdropBlurHelper.setScreenBackground(null);
+    }
+    return;
+}
 
             Bitmap bmp;
             if (path.startsWith("content:") || path.startsWith("file:")) {
@@ -1256,10 +1333,31 @@ public class MainActivity extends BaseActivity {
                     return;
                 }
             }
-            android.graphics.drawable.BitmapDrawable bd =
-                    new android.graphics.drawable.BitmapDrawable(getResources(), bmp);
-            bd.setAlpha(180);
-            target.setBackgroundDrawable(bd);
+
+            if (UiOverrides.glassEnabled(this)) {
+                Bitmap blurred = GlassBackdropHelper.fastBlur(bmp, 20);
+                if (blurred != null && blurred != bmp) {
+                    try { bmp.recycle(); } catch (Throwable t) {}
+                    bmp = blurred;
+                }
+            }
+
+android.graphics.drawable.BitmapDrawable bd =
+        new android.graphics.drawable.BitmapDrawable(getResources(), bmp);
+bd.setAlpha(UiOverrides.glassEnabled(this) ? 255 : 180);
+target.setBackgroundDrawable(bd);
+
+// ★ 保存一份屏幕尺寸的清晰 Bitmap 供局部模糊使用
+if (UiOverrides.glassEnabled(this)) {
+    try {
+        int sw = getResources().getDisplayMetrics().widthPixels;
+        int sh = getResources().getDisplayMetrics().heightPixels;
+        Bitmap screen = Bitmap.createScaledBitmap(bmp, sw, sh, true);
+        BackdropBlurHelper.setScreenBackground(screen);
+    } catch (Throwable t) {}
+} else {
+    BackdropBlurHelper.setScreenBackground(null);
+}
         } catch (Throwable t) {}
     }
 
@@ -1276,28 +1374,31 @@ public class MainActivity extends BaseActivity {
     }
 
     private void confirmDeleteSession(final int index) {
-        new AlertDialog.Builder(this).setTitle(t("session_delete_confirm", "删除这条对话记录？"))
-            .setPositiveButton(t("common_delete", "删除"), new DialogInterface.OnClickListener() {
-                @Override public void onClick(DialogInterface d, int which) {
-                    try {
-                        JSONObject s = sessionsJson.optJSONObject(index);
-                        final String did = s == null ? "" : UiUtils.optStr(s, "id");
-                        boolean isCurrent = did.equals(currentSessionId);
-                        sessionsJson.remove(index);
-                        persistSessionIndex();
-                        if (did.length() > 0) {
-                            final String fid = did;
-                            io.execute(new Runnable() { @Override public void run() {
-                                try { chatFile(fid).delete(); } catch (Throwable t) {}
-                                try { deleteChatImages(fid); } catch (Throwable t) {}
-                            }});
-                        }
-                        if (isCurrent) { currentSessionId = ""; messages = new JSONArray(); initNewSession(); }
-                        refreshHistoryList();
-                    } catch (Throwable t) {}
-                    d.dismiss();
-                }
-            }).setNegativeButton(t("common_cancel", "取消"), null).create().show();
+        new GlassDialog.Builder(this)
+                .setTitle(t("session_delete_confirm", "删除这条对话记录？"))
+                .setPositiveButton(t("common_delete", "删除"), new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        try {
+                            JSONObject s = sessionsJson.optJSONObject(index);
+                            final String did = s == null ? "" : UiUtils.optStr(s, "id");
+                            boolean isCurrent = did.equals(currentSessionId);
+                            sessionsJson.remove(index);
+                            persistSessionIndex();
+                            if (did.length() > 0) {
+                                final String fid = did;
+                                io.execute(new Runnable() { @Override public void run() {
+                                    try { chatFile(fid).delete(); } catch (Throwable t) {}
+                                    try { deleteChatImages(fid); } catch (Throwable t) {}
+                                }});
+                            }
+                            if (isCurrent) { currentSessionId = ""; messages = new JSONArray(); initNewSession(); }
+                            refreshHistoryList();
+                        } catch (Throwable t) {}
+                        d.dismiss();
+                    }
+                })
+                .setNegativeButton(t("common_cancel", "取消"), null)
+                .show();
     }
 
     // ============================================================
@@ -1375,13 +1476,14 @@ public class MainActivity extends BaseActivity {
             FileOutputStream fos = new FileOutputStream(f);
             fos.write(md.getBytes("UTF-8"));
             fos.close();
-            new AlertDialog.Builder(this)
+            new GlassDialog.Builder(this)
                     .setTitle(t("export_done", "已导出"))
                     .setMessage(f.getAbsolutePath())
                     .setPositiveButton(t("common_share", "分享"), new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) { shareText(md); d.dismiss(); }
                     })
-                    .setNegativeButton(t("common_know", "知道了"), null).create().show();
+                    .setNegativeButton(t("common_know", "知道了"), null)
+                    .show();
         } catch (Throwable t) {
             Toast.makeText(this, t("export_fail", "导出失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -1447,28 +1549,66 @@ public class MainActivity extends BaseActivity {
             scrollToBottom();
         } catch (Throwable t) {}
     }
+    
+    private void appendGeneratedImage(String b64) {
+    try {
+        JSONArray arr = new JSONArray();
+        JSONObject t2 = new JSONObject();
+        t2.put("type", "text");
+        t2.put("text", "【系统自动附图】这是刚刚由 generate_image 工具生成的图片，请查看并向用户描述或继续对话。");
+        arr.put(t2);
+        JSONObject im = new JSONObject();
+        im.put("type", "image_url");
+        JSONObject u = new JSONObject();
+        u.put("url", "data:image/jpeg;base64," + b64);
+        im.put("image_url", u);
+        arr.put(im);
+        JSONObject m = new JSONObject();
+        m.put("role", "user");
+        m.put("content", arr);
+        messages.put(m);
+        if (layoutWelcome != null) layoutWelcome.setVisibility(View.GONE);
+        addUserBubble(messages.length() - 1, m);
+        scrollToBottom();
+    } catch (Throwable t) {}
+}
 
-    private LinearLayout newAiBox(int msgIndex) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(UiUtils.dp(this, 4), UiUtils.dp(this, 6),
-                       UiUtils.dp(this, 4), UiUtils.dp(this, 6));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, UiUtils.dp(this, 6), 0, UiUtils.dp(this, 6));
-        box.setLayoutParams(lp);
-        try {
-            android.graphics.drawable.Drawable bg = UiOverrides.bubbleAiBgDrawable(this);
-            if (bg != null) {
-                box.setBackgroundDrawable(bg);
-                box.setPadding(UiUtils.dp(this, 10), UiUtils.dp(this, 8),
-                               UiUtils.dp(this, 10), UiUtils.dp(this, 8));
+private LinearLayout newAiBox(int msgIndex) {
+    final LinearLayout box = new LinearLayout(this);
+    box.setOrientation(LinearLayout.VERTICAL);
+    box.setPadding(UiUtils.dp(this, 4), UiUtils.dp(this, 6),
+                   UiUtils.dp(this, 4), UiUtils.dp(this, 6));
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    lp.setMargins(0, UiUtils.dp(this, 6), 0, UiUtils.dp(this, 6));
+    box.setLayoutParams(lp);
+    try {
+        android.graphics.drawable.Drawable bg = UiOverrides.bubbleAiBgDrawable(this);
+        if (bg != null) {
+            box.setBackgroundDrawable(bg);
+            box.setPadding(UiUtils.dp(this, 10), UiUtils.dp(this, 8),
+                           UiUtils.dp(this, 10), UiUtils.dp(this, 8));
+        }
+    } catch (Throwable t) {}
+    try { box.setTag(Integer.valueOf(msgIndex)); } catch (Throwable t) {}
+    llMessages.addView(box);
+
+    if (UiOverrides.glassEnabled(this)) {
+        box.post(new Runnable() {
+            @Override public void run() {
+                try {
+                    android.graphics.drawable.Drawable d = UiOverrides.bubbleAiBgDrawable(MainActivity.this, box);
+                    if (d != null) {
+                        box.setBackgroundDrawable(d);
+                        box.setPadding(UiUtils.dp(MainActivity.this, 10), UiUtils.dp(MainActivity.this, 8),
+                                       UiUtils.dp(MainActivity.this, 10), UiUtils.dp(MainActivity.this, 8));
+                    }
+                } catch (Throwable t) {}
             }
-        } catch (Throwable t) {}
-        try { box.setTag(Integer.valueOf(msgIndex)); } catch (Throwable t) {}
-        llMessages.addView(box);
-        return box;
+        });
     }
+    return box;
+}
 
     private void addAiActionRow(final LinearLayout container, final int msgIndex) {
         if (container == null) return;
@@ -1544,7 +1684,7 @@ public class MainActivity extends BaseActivity {
             if (text == null || text.trim().length() == 0) { toast("tts_no_content", "这条回复没有可朗读的内容"); return; }
             if (TtsHelper.isSpeaking()) { TtsHelper.stop(); toast("tts_stopped", "已停止朗读"); return; }
             if (!TtsHelper.isEnabled(this)) {
-                new AlertDialog.Builder(this)
+                new GlassDialog.Builder(this)
                         .setTitle(t("tts_not_enabled_title", "TTS 未启用"))
                         .setMessage(t("tts_not_enabled_msg", "请先在「设置 → 语音合成」里开启 TTS 朗读。\n\n未设置 API 地址时会自动使用系统 TTS。"))
                         .setPositiveButton(t("tts_go_enable", "去开启"), new DialogInterface.OnClickListener() {
@@ -1558,7 +1698,7 @@ public class MainActivity extends BaseActivity {
                             }
                         })
                         .setNegativeButton(t("common_cancel", "取消"), null)
-                        .create().show();
+                        .show();
                 return;
             }
             Toast.makeText(this, t("tts_start", "开始朗读…"), Toast.LENGTH_SHORT).show();
@@ -1611,74 +1751,91 @@ public class MainActivity extends BaseActivity {
         return sb.toString();
     }
 
-    private void addUserBubble(final int index, JSONObject m) {
-        if (m == null) return;
+private void addUserBubble(final int index, JSONObject m) {
+    if (m == null) return;
 
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int maxBubbleWidth = screenWidth - UiUtils.dp(this, 80);
+    int screenWidth = getResources().getDisplayMetrics().widthPixels;
+    int maxBubbleWidth = screenWidth - UiUtils.dp(this, 80);
 
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setGravity(Gravity.RIGHT);
+    final LinearLayout box = new LinearLayout(this);
+    box.setOrientation(LinearLayout.VERTICAL);
+    box.setGravity(Gravity.RIGHT);
 
-        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        blp.setMargins(0, UiUtils.dp(this, 6), 0, UiUtils.dp(this, 6));
-        box.setLayoutParams(blp);
+    LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    blp.setMargins(0, UiUtils.dp(this, 6), 0, UiUtils.dp(this, 6));
+    box.setLayoutParams(blp);
 
-        android.graphics.drawable.Drawable bubbleBg = UiOverrides.bubbleUserBgDrawable(this);
-        int bubbleTextColor = UiOverrides.bubbleUserText(this);
+    final android.graphics.drawable.Drawable bubbleBg = UiOverrides.bubbleUserBgDrawable(this);
+    final int bubbleTextColor = UiOverrides.bubbleUserText(this);
 
-        List<String> urls = UiUtils.extractImageUrls(m);
-        for (int i = 0; i < urls.size() && i < 6; i++) {
-            ImageView iv = new ImageView(this);
-            int size = UiUtils.dp(this, 150);
-            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(size, size);
-            ilp.gravity = Gravity.RIGHT;
-            iv.setLayoutParams(ilp);
-            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            if (bubbleBg != null) iv.setBackgroundDrawable(bubbleBg);
-            loadImageSmart(urls.get(i), iv);
-            final String fUrl = urls.get(i);
-            iv.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { showImageDialog(fUrl); }
-            });
-            box.addView(iv);
-        }
-
-        String text = UiUtils.contentToText(m, false);
-        if (text.length() > 0) {
-            TextView tv = new TextView(this);
-            tv.setText(text);
-            tv.setTextSize(15);
-            tv.setLineSpacing(UiUtils.dp(this, 3), 1f);
-            tv.setPadding(UiUtils.dp(this, 14), UiUtils.dp(this, 10),
-                          UiUtils.dp(this, 14), UiUtils.dp(this, 10));
-            tv.setTextColor(bubbleTextColor);
-            if (bubbleBg != null) tv.setBackgroundDrawable(bubbleBg);
-            else tv.setBackgroundResource(R.drawable.bubble_user_bg);
-            tv.setSingleLine(false);
-            tv.setMaxLines(50);
-            tv.setEllipsize(null);
-            tv.setHorizontallyScrolling(false);
-            tv.setMaxWidth(maxBubbleWidth);
-
-            LinearLayout.LayoutParams tvlp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            tvlp.gravity = Gravity.RIGHT;
-            tv.setLayoutParams(tvlp);
-            box.addView(tv);
-        }
-
-        box.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { showEditDialog(index); }
+    List<String> urls = UiUtils.extractImageUrls(m);
+    for (int i = 0; i < urls.size() && i < 6; i++) {
+        ImageView iv = new ImageView(this);
+        int size = UiUtils.dp(this, 150);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(size, size);
+        ilp.gravity = Gravity.RIGHT;
+        iv.setLayoutParams(ilp);
+        iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        if (bubbleBg != null) iv.setBackgroundDrawable(bubbleBg);
+        loadImageSmart(urls.get(i), iv);
+        final String fUrl = urls.get(i);
+        iv.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showImageDialog(fUrl); }
         });
-        box.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override public boolean onLongClick(View v) { showUserMenu(index); return true; }
-        });
-        llMessages.addView(box);
-        scrollToBottom();
+        box.addView(iv);
     }
+
+    String text = UiUtils.contentToText(m, false);
+    if (text.length() > 0) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(15);
+        tv.setLineSpacing(UiUtils.dp(this, 3), 1f);
+        tv.setPadding(UiUtils.dp(this, 14), UiUtils.dp(this, 10),
+                      UiUtils.dp(this, 14), UiUtils.dp(this, 10));
+        tv.setTextColor(bubbleTextColor);
+        if (bubbleBg != null) tv.setBackgroundDrawable(bubbleBg);
+        else tv.setBackgroundResource(R.drawable.bubble_user_bg);
+        tv.setSingleLine(false);
+        tv.setMaxLines(50);
+        tv.setEllipsize(null);
+        tv.setHorizontallyScrolling(false);
+        tv.setMaxWidth(maxBubbleWidth);
+
+        LinearLayout.LayoutParams tvlp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        tvlp.gravity = Gravity.RIGHT;
+        tv.setLayoutParams(tvlp);
+        box.addView(tv);
+    }
+
+    box.setOnClickListener(new View.OnClickListener() {
+        @Override public void onClick(View v) { showEditDialog(index); }
+    });
+    box.setOnLongClickListener(new View.OnLongClickListener() {
+        @Override public boolean onLongClick(View v) { showUserMenu(index); return true; }
+    });
+    llMessages.addView(box);
+    scrollToBottom();
+
+    // ★ 布局完成后应用局部模糊玻璃背景
+    if (UiOverrides.glassEnabled(this)) {
+        box.post(new Runnable() {
+            @Override public void run() {
+                try {
+                    android.graphics.drawable.Drawable d = UiOverrides.bubbleUserBgDrawable(MainActivity.this, box);
+                    if (d == null) return;
+                    for (int i = 0; i < box.getChildCount(); i++) {
+                        View ch = box.getChildAt(i);
+                        if (ch instanceof ImageView) continue;
+                        ch.setBackgroundDrawable(d);
+                    }
+                } catch (Throwable t) {}
+            }
+        });
+    }
+}
 
     private void loadImageSmart(String url, ImageView iv) {
         if (url == null || iv == null) return;
@@ -1730,9 +1887,8 @@ public class MainActivity extends BaseActivity {
             items.add(p.optString("title", p.optString("name", "插件")));
         }
         final List<String> fItems = items;
-        new AlertDialog.Builder(this)
-                .setTitle(t("msg_menu_title", "这条消息"))
-                .setItems(fItems.toArray(new String[0]), new DialogInterface.OnClickListener() {
+        GlassMenuDialog.showItems(this, t("msg_menu_title", "这条消息"), fItems.toArray(new String[0]),
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         String it = fItems.get(which);
@@ -1762,26 +1918,27 @@ public class MainActivity extends BaseActivity {
                             }
                         }
                     }
-                })
-                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
+                });
     }
 
     private void confirmDeleteFrom(final int index) {
-        new AlertDialog.Builder(this).setTitle(t("msg_delete_confirm", "删除这条消息及其之后的所有内容？"))
-            .setPositiveButton(t("common_delete", "删除"), new DialogInterface.OnClickListener() {
-                @Override public void onClick(DialogInterface d, int which) {
-                    d.dismiss();
-                    try {
-                        while (messages.length() > index) messages.remove(messages.length() - 1);
-                        removeStoppedRow();
-                        resetRound(); renderMessages(); saveCurrentSession();
-                    } catch (Throwable t) {}
-                }
-            }).setNegativeButton(t("common_cancel", "取消"), null).create().show();
+        new GlassDialog.Builder(this)
+                .setTitle(t("msg_delete_confirm", "删除这条消息及其之后的所有内容？"))
+                .setPositiveButton(t("common_delete", "删除"), new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        try {
+                            while (messages.length() > index) messages.remove(messages.length() - 1);
+                            removeStoppedRow();
+                            resetRound(); renderMessages(); saveCurrentSession();
+                        } catch (Throwable t) {}
+                    }
+                })
+                .setNegativeButton(t("common_cancel", "取消"), null)
+                .show();
     }
 
     private void showImageDialog(final String url) {
-        final AlertDialog dlg = new AlertDialog.Builder(this).create();
         LinearLayout wrap = new LinearLayout(this); wrap.setOrientation(LinearLayout.VERTICAL);
         wrap.setBackgroundColor(0xFF000000);
         wrap.setGravity(Gravity.CENTER);
@@ -1826,8 +1983,17 @@ public class MainActivity extends BaseActivity {
             saveImageToExports(url);
             return true;
         }});
+        final android.app.Dialog dlg = new android.app.Dialog(this);
+        dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dlg.setContentView(wrap);
         wrap.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { try { dlg.dismiss(); } catch (Throwable t) {} } });
-        dlg.setView(wrap);
+        android.view.Window w = dlg.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+            w.setLayout(android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                    android.view.WindowManager.LayoutParams.MATCH_PARENT);
+            try { w.setDimAmount(0.8f); } catch (Throwable t) {}
+        }
         try { dlg.show(); } catch (Throwable t) {}
     }
 
@@ -1941,15 +2107,13 @@ public class MainActivity extends BaseActivity {
                 t("ai_menu_regen", "从这里重新生成"),
                 t("ai_menu_delete_round", "删除这一轮")};
 
-        new AlertDialog.Builder(this)
-                .setTitle(t("ai_menu_title", "这条回复"))
-                .setItems(items, new DialogInterface.OnClickListener() {
+        GlassMenuDialog.showItems(this, t("ai_menu_title", "这条回复"), items,
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         handleAiMenu(assistantIndex, full, reasoning, which, hasText);
                     }
-                })
-                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
+                });
     }
 
     private void handleAiMenu(int idx, String full, String reasoning, int which, boolean hasText) {
@@ -2485,8 +2649,9 @@ public class MainActivity extends BaseActivity {
             if ("run_js".equals(tool)) return JsToolExecutor.execute(this, args);
             if ("accessibility_control".equals(tool)) return AccessibilityController.execute(this, args);
             if ("web_search".equals(tool) || "fetch_url".equals(tool)) return webExecutor.execute(tool, args);
-            if ("ask_user".equals(tool)) return "(ask_user 已被拦截)";
-            return fileExecutor.execute(tool, args);
+if ("generate_image".equals(tool)) return ImageGenClient.generateSync(this, args);
+if ("ask_user".equals(tool)) return "(ask_user 已被拦截)";
+return fileExecutor.execute(tool, args);
         } catch (Throwable t) {
             return "工具执行失败: " + t.getMessage();
         }
@@ -2623,6 +2788,17 @@ public class MainActivity extends BaseActivity {
                                     addSearchOrReaderCard(currentAiContainer, o.result);
                                     continue;
                                 }
+                                if (o.result != null && o.result.startsWith(ImageGenClient.IMAGE_PREFIX)) {
+    String b64 = o.result.substring(ImageGenClient.IMAGE_PREFIX.length());
+    JSONObject tm = new JSONObject();
+    tm.put("role", "tool");
+    tm.put("tool_call_id", o.id);
+    tm.put("content", "已生成图片，图片自动附在下一条消息里，请查看后继续对话。");
+    messages.put(tm);
+    addToolPanel(currentAiContainer, o.name, "(图片已生成并附到对话)", false);
+    appendGeneratedImage(b64);
+    continue;
+}
                                 JSONObject tm = new JSONObject();
                                 tm.put("role", "tool");
                                 tm.put("tool_call_id", o.id);
@@ -2915,23 +3091,22 @@ public class MainActivity extends BaseActivity {
         }
 
         if (presets.length > 0) {
-            new AlertDialog.Builder(this)
+            String[] items = new String[presets.length + 1];
+            System.arraycopy(presets, 0, items, 0, presets.length);
+            items[presets.length] = t("ask_self_input", "自己输入");
+            final String fQuestion = question;
+            new GlassDialog.Builder(this)
                     .setTitle(t("ask_dialog_title", "AI 想问你"))
-                    .setMessage(question)
-                    .setItems(presets, new DialogInterface.OnClickListener() {
-                        @Override public void onClick(DialogInterface d, int which) {
-                            et.setText(presets[which]);
-                            d.dismiss();
-                            showAskInputDialog(question, et, askCall, otherCalls, round);
-                        }
-                    })
-                    .setNegativeButton(t("ask_self_input", "自己输入"), new DialogInterface.OnClickListener() {
+                    .setMessage(fQuestion)
+                    .setItems(items, new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) {
                             d.dismiss();
-                            showAskInputDialog(question, et, askCall, otherCalls, round);
+                            if (which < presets.length) et.setText(presets[which]);
+                            showAskInputDialog(fQuestion, et, askCall, otherCalls, round);
                         }
                     })
-                    .create().show();
+                    .setNegativeButton(t("common_cancel", "取消"), null)
+                    .show();
         } else {
             showAskInputDialog(question, et, askCall, otherCalls, round);
         }
@@ -2939,7 +3114,7 @@ public class MainActivity extends BaseActivity {
 
     private void showAskInputDialog(String question, final EditText et,
                                     final JSONObject askCall, final JSONArray otherCalls, final int round) {
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(t("ask_dialog_title", "AI 想问你"))
                 .setMessage(question)
                 .setView(et)
@@ -2957,7 +3132,7 @@ public class MainActivity extends BaseActivity {
                         answerToAsk(askCall, "(用户取消了回答，请基于已有信息继续)", otherCalls, round);
                     }
                 })
-                .create().show();
+                .show();
     }
 
     private void answerToAsk(JSONObject askCall, String answer,
@@ -2997,14 +3172,19 @@ public class MainActivity extends BaseActivity {
         final String fpath = path;
         final boolean frec = recursive;
         final String[] finalArgs = new String[]{argsJson};
-        final AlertDialog[] dlgHolder = new AlertDialog[1];
+        final android.app.Dialog[] dlgHolder = new android.app.Dialog[1];
+
+        String initMsg = "AI 想删除:" + (char)10 + fpath + (frec ? "（含目录内容）" : "")
+                + (char)10 + (char)10 + sec + " 秒后自动同意…";
 
         final android.os.CountDownTimer timer = new android.os.CountDownTimer((long) sec * 1000, 1000) {
             @Override public void onTick(long millisUntilFinished) {
                 try {
-                    if (dlgHolder[0] != null) dlgHolder[0].setMessage(
-                            "AI 想删除:\n" + fpath + (frec ? "（含目录内容）" : "")
-                                    + "\n\n" + (millisUntilFinished / 1000) + " 秒后自动同意…");
+                    if (dlgHolder[0] != null) {
+                        String m = "AI 想删除:" + (char)10 + fpath + (frec ? "（含目录内容）" : "")
+                                + (char)10 + (char)10 + (millisUntilFinished / 1000) + " 秒后自动同意…";
+                        GlassDialog.updateMessage(dlgHolder[0], m);
+                    }
                 } catch (Throwable t) {}
             }
             @Override public void onFinish() {
@@ -3013,10 +3193,9 @@ public class MainActivity extends BaseActivity {
             }
         };
 
-        dlgHolder[0] = new AlertDialog.Builder(this)
+        dlgHolder[0] = new GlassDialog.Builder(this)
                 .setTitle(t("delete_confirm_title", "确认删除"))
-                .setMessage("AI 想删除:\n" + fpath + (frec ? "（含目录内容）" : "")
-                        + "\n\n" + sec + " 秒后自动同意…")
+                .setMessage(initMsg)
                 .setPositiveButton(t("delete_confirm_now", "立即删除"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         try { timer.cancel(); } catch (Throwable t) {}
@@ -3031,15 +3210,13 @@ public class MainActivity extends BaseActivity {
                         rejectDelete(deleteCall, otherCalls, round);
                     }
                 })
-                .setOnCancelListener(new DialogInterface.OnCancelListener() {
-                    @Override public void onCancel(DialogInterface d) {
+                .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override public void onDismiss(DialogInterface d) {
                         try { timer.cancel(); } catch (Throwable t) {}
-                        rejectDelete(deleteCall, otherCalls, round);
                     }
                 })
-                .create();
+                .show();
 
-        try { dlgHolder[0].show(); } catch (Throwable t) {}
         try { timer.start(); } catch (Throwable t) {}
     }
 
@@ -3388,9 +3565,8 @@ public class MainActivity extends BaseActivity {
         }
 
         final List<String> fItems = items;
-        new AlertDialog.Builder(this)
-                .setTitle(t("more_title", "更多"))
-                .setItems(fItems.toArray(new String[0]), new DialogInterface.OnClickListener() {
+        GlassMenuDialog.showItems(this, t("more_title", "更多"), fItems.toArray(new String[0]),
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         if (which == 0) exportCurrentSession();
@@ -3414,8 +3590,7 @@ public class MainActivity extends BaseActivity {
                             }
                         }
                     }
-                })
-                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
+                });
     }
 
     private void copyLastAssistant() {
@@ -3439,7 +3614,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private void clearCurrentSession() {
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(t("chat_empty", "清空当前会话的内容？"))
                 .setPositiveButton(t("chat_clear", "清空"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
@@ -3451,7 +3626,8 @@ public class MainActivity extends BaseActivity {
                         d.dismiss();
                     }
                 })
-                .setNegativeButton(t("common_cancel", "取消"), null).create().show();
+                .setNegativeButton(t("common_cancel", "取消"), null)
+                .show();
     }
 
     // ============================================================
@@ -3489,7 +3665,7 @@ public class MainActivity extends BaseActivity {
         wrap.addView(lv, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, UiUtils.dp(this, 340)));
 
-        final AlertDialog dlg = new AlertDialog.Builder(this)
+        final android.app.Dialog dlg = new GlassDialog.Builder(this)
                 .setTitle(dir.getAbsolutePath() + "\n" + t("file_picker_selected", "已选 %d 个文件").replace("%d", String.valueOf(pendingRefFiles.size())))
                 .setView(wrap)
                 .setPositiveButton(t("file_picker_done", "完成"), new DialogInterface.OnClickListener() {
@@ -3502,7 +3678,7 @@ public class MainActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(t("common_cancel", "取消"), null)
-                .create();
+                .show();
 
         lv.setOnItemClickListener(new android.widget.AdapterView.OnItemClickListener() {
             @Override public void onItemClick(android.widget.AdapterView<?> parent, View view, int pos, long id) {
@@ -3524,13 +3700,11 @@ public class MainActivity extends BaseActivity {
                     } else {
                         if (!pendingRefFiles.contains(f)) {
                             pendingRefFiles.add(f);
-                            dlg.setTitle(dir.getAbsolutePath() + "\n" + t("file_picker_selected", "已选 %d 个文件").replace("%d", String.valueOf(pendingRefFiles.size())));
                         }
                     }
                 } catch (Throwable t) {}
             }
         });
-        try { dlg.show(); } catch (Throwable t) {}
     }
 
     private void finishRefPick() {
@@ -3624,28 +3798,33 @@ public class MainActivity extends BaseActivity {
         et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10), UiUtils.dp(this, 12), UiUtils.dp(this, 10));
         et.setTextIsSelectable(true);
-        LinearLayout wrap = new LinearLayout(this); wrap.setOrientation(LinearLayout.VERTICAL);
-        wrap.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 6), UiUtils.dp(this, 12), UiUtils.dp(this, 6));
-        wrap.addView(et, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        AlertDialog.Builder b = new AlertDialog.Builder(this);
-        b.setTitle(oldImage == null ? t("msg_edit_title", "修改我的消息") : t("msg_edit_title_with_image", "修改我的消息（含图片）"));
-        b.setView(wrap);
-        b.setPositiveButton(t("msg_resend", "重新发送"), null);
-        b.setNeutralButton(t("common_copy", "复制"), null);
-        b.setNegativeButton(t("common_cancel", "取消"), null);
-        final AlertDialog dlg = b.create();
-        try { dlg.show(); } catch (Throwable t) { return; }
-        dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                String nt = et.getText().toString().trim();
-                if (nt.length() == 0 && oldImage == null) { toast("msg_empty", "内容不能为空"); return; }
-                dlg.dismiss(); resendFrom(index, nt, oldImage);
-            }
-        });
-        dlg.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { MarkdownView.copyText(MainActivity.this, et.getText().toString()); }
-        });
+        final android.app.Dialog dlg = new GlassDialog.Builder(this)
+                .setTitle(oldImage == null ? t("msg_edit_title", "修改我的消息") : t("msg_edit_title_with_image", "修改我的消息（含图片）"))
+                .setView(et)
+                .setPositiveButton(t("msg_resend", "重新发送"), null)
+                .setNeutralButton(t("common_copy", "复制"), null)
+                .setNegativeButton(t("common_cancel", "取消"), null)
+                .show();
+
+        TextView posBtn = GlassDialog.Builder.getButton(dlg, DialogInterface.BUTTON_POSITIVE);
+        if (posBtn != null) {
+            posBtn.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    String nt = et.getText().toString().trim();
+                    if (nt.length() == 0 && oldImage == null) { toast("msg_empty", "内容不能为空"); return; }
+                    dlg.dismiss(); resendFrom(index, nt, oldImage);
+                }
+            });
+        }
+        TextView neuBtn = GlassDialog.Builder.getButton(dlg, DialogInterface.BUTTON_NEUTRAL);
+        if (neuBtn != null) {
+            neuBtn.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    MarkdownView.copyText(MainActivity.this, et.getText().toString());
+                }
+            });
+        }
     }
 
     private void resendFrom(int index, String newText, String imageB64) {
@@ -3696,38 +3875,39 @@ public class MainActivity extends BaseActivity {
         }
 
         final List<String> fItems = items;
-        new AlertDialog.Builder(this).setTitle(t("attach_title", "添加内容")).setItems(fItems.toArray(new String[0]), new DialogInterface.OnClickListener() {
-            @Override public void onClick(DialogInterface d, int which) {
-                d.dismiss();
-                String it = fItems.get(which);
-                if (t("attach_gallery", "从相册选择图片").equals(it)) pickFromGallery();
-                else if (t("attach_camera", "拍照").equals(it)) takePhoto();
-                else if (t("attach_ref_file", "引用本地文件（同 @）").equals(it)) showFilePicker();
-                else if (t("attach_import", "导入会话").equals(it)) showImportMenu();
-                else if (t("attach_realtime", "实时通话").equals(it)) startRealtimeCall();
-                else if (it != null) {
-                    for (int k = 0; k < inputPlugins.size(); k++) {
-                        JSONObject p = inputPlugins.get(k);
-                        if (it.equals(p.optString("title", p.optString("name", "插件")))) {
-                            final JSONObject fp = p;
-                            UiPluginDialog.show(MainActivity.this, fp, new UiPluginDialog.OnSubmitListener() {
-                                @Override public void onSubmit(final JSONObject args) {
-                                    runUiPluginInline(fp, args);
+        GlassMenuDialog.showItems(this, t("attach_title", "添加内容"), fItems.toArray(new String[0]),
+                new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        String it = fItems.get(which);
+                        if (t("attach_gallery", "从相册选择图片").equals(it)) pickFromGallery();
+                        else if (t("attach_camera", "拍照").equals(it)) takePhoto();
+                        else if (t("attach_ref_file", "引用本地文件（同 @）").equals(it)) showFilePicker();
+                        else if (t("attach_import", "导入会话").equals(it)) showImportMenu();
+                        else if (t("attach_realtime", "实时通话").equals(it)) startRealtimeCall();
+                        else if (it != null) {
+                            for (int k = 0; k < inputPlugins.size(); k++) {
+                                JSONObject p = inputPlugins.get(k);
+                                if (it.equals(p.optString("title", p.optString("name", "插件")))) {
+                                    final JSONObject fp = p;
+                                    UiPluginDialog.show(MainActivity.this, fp, new UiPluginDialog.OnSubmitListener() {
+                                        @Override public void onSubmit(final JSONObject args) {
+                                            runUiPluginInline(fp, args);
+                                        }
+                                    });
+                                    break;
                                 }
-                            });
-                            break;
+                            }
                         }
                     }
-                }
-            }
-        }).create().show();
+                });
     }
 
     private void startRealtimeCall() {
         try {
             String[] cfg = RealtimeConfig.resolve(this);
             if (cfg[0].length() == 0 || cfg[2].length() == 0 || cfg[1].length() == 0) {
-                new AlertDialog.Builder(this)
+                new GlassDialog.Builder(this)
                         .setTitle(t("realtime_not_configured_title", "实时通话未配置完整"))
                         .setMessage(t("realtime_not_configured_msg", "需要先配置「设置 → 语音 → 实时通话」里的 WebSocket 地址 / 模型 / API Key。\n\n是否现在去配置？"))
                         .setPositiveButton(t("realtime_go_config", "去配置"), new DialogInterface.OnClickListener() {
@@ -3741,7 +3921,7 @@ public class MainActivity extends BaseActivity {
                             }
                         })
                         .setNegativeButton(t("common_cancel", "取消"), null)
-                        .create().show();
+                        .show();
                 return;
             }
             Intent it = new Intent(this, VoiceCallActivity.class);
@@ -3777,7 +3957,7 @@ public class MainActivity extends BaseActivity {
             final String kind = action == null ? "prompt" : action.optString("kind", "prompt").toLowerCase();
 
             if ("script".equals(kind)) {
-                new AlertDialog.Builder(this)
+                new GlassDialog.Builder(this)
                         .setTitle(t("plugin_exec_script_title", "执行脚本？"))
                         .setMessage(t("plugin_exec_script_msg", "该插件将执行本机 shell 脚本。只在你信任插件来源时继续。"))
                         .setPositiveButton(t("plugin_exec", "执行"), new DialogInterface.OnClickListener() {
@@ -3786,7 +3966,8 @@ public class MainActivity extends BaseActivity {
                                 doRunUiPlugin(plugin, args, kind);
                             }
                         })
-                        .setNegativeButton(t("common_cancel", "取消"), null).create().show();
+                        .setNegativeButton(t("common_cancel", "取消"), null)
+                        .show();
                 return;
             }
             doRunUiPlugin(plugin, args, kind);
@@ -3809,7 +3990,7 @@ public class MainActivity extends BaseActivity {
                                 }
                             } catch (Throwable t) {}
                         } else if ("ui_change".equals(kind)) {
-                            new AlertDialog.Builder(MainActivity.this)
+                            new GlassDialog.Builder(MainActivity.this)
                                     .setTitle("UI 已更新")
                                     .setMessage(result == null ? "（空）" : result)
                                     .setPositiveButton(t("common_know", "知道了"), new DialogInterface.OnClickListener() {
@@ -3820,7 +4001,7 @@ public class MainActivity extends BaseActivity {
                                             try { renderMessages(); } catch (Throwable t) {}
                                         }
                                     })
-                                    .create().show();
+                                    .show();
                         } else {
                             if (result != null && result.startsWith("错误:")) {
                                 Toast.makeText(MainActivity.this, result, Toast.LENGTH_SHORT).show();
@@ -4151,17 +4332,14 @@ public class MainActivity extends BaseActivity {
             final String[] items = new String[]{
                     t("import_md", "导入Markdown会话"),
                     t("import_json", "导入JSON会话")};
-            new AlertDialog.Builder(this)
-                    .setTitle(t("import_title", "导入会话"))
-                    .setItems(items, new DialogInterface.OnClickListener() {
+            GlassMenuDialog.showItems(this, t("import_title", "导入会话"), items,
+                    new DialogInterface.OnClickListener() {
                         @Override public void onClick(DialogInterface d, int which) {
                             d.dismiss();
                             if (which == 0) importMarkdownSession();
                             else if (which == 1) importJsonSession();
                         }
-                    })
-                    .setNegativeButton(t("common_cancel", "取消"), null)
-                    .create().show();
+                    });
         } catch (Throwable t) {
             Toast.makeText(this, t("err_no_import_menu", "打开导入菜单失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }

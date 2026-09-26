@@ -799,14 +799,22 @@ public class AiClient {
     // 工具列表
     // ============================================================
 
-    public static JSONArray buildTools() { return buildTools(false, false); }
+public static JSONArray buildTools() { return buildTools(false, false, false); }
 
-    /**
-     * 构建工具列表。
-     * @param allowShellTool 是否注册 run_shell_command（需用户在设置里开启）
-     * @param allowA11yTool  是否注册 accessibility_control（需用户在设置里开启 + 系统无障碍服务）
-     */
-    public static JSONArray buildTools(boolean allowShellTool, boolean allowA11yTool) {
+/**
+ * 构建工具列表。
+ * @param allowShellTool 是否注册 run_shell_command（需用户在设置里开启）
+ * @param allowA11yTool  是否注册 accessibility_control（需用户在设置里开启 + 系统无障碍服务）
+ */
+public static JSONArray buildTools(boolean allowShellTool, boolean allowA11yTool) {
+    return buildTools(allowShellTool, allowA11yTool, false);
+}
+
+/**
+ * 构建工具列表（含文生图）。
+ * @param allowImageGen  是否注册 generate_image
+ */
+public static JSONArray buildTools(boolean allowShellTool, boolean allowA11yTool, boolean allowImageGen) {
         JSONArray tools = new JSONArray();
         try {
             // ---------- 文件：查看 ----------
@@ -1025,12 +1033,25 @@ public class AiClient {
                       + "若 SET_TEXT 与剪贴板粘贴都失败，文本已自动复制到剪贴板，引导用户长按输入框粘贴。"
                       + "每次操作后如果界面可能变化，建议 sleep 后用 screen 或 screenshot 确认结果。"
                       + "仅在用户已开启系统无障碍服务后可用。涉及支付、密码、删除等敏感操作时必须先征得用户同意。",
-                        pA11y, new JSONArray().put("action")));
-            }
+                pA11y, new JSONArray().put("action")));
+    }
 
-        } catch (Throwable e) {
-            // 工具定义失败不影响主流程
-        }
-        return tools;
+    // ---------- 文生图 ----------
+
+    if (allowImageGen) {
+        JSONObject pImg = new JSONObject();
+        pImg.put("prompt", prop("string", "图像描述，越具体越好（中英文均可）。建议包含：主体 + 场景 + 风格 + 色调 + 构图"));
+        pImg.put("size", prop("string", "图片尺寸，如 1024x1024。留空使用设置里的默认尺寸"));
+        tools.put(func("generate_image",
+                "根据文字描述生成图片。生成的图片会自动附到对话里，你也能在下一轮看到它。"
+              + "适合：插画、封面、示意图、概念图、表情包、海报等。"
+              + "prompt 越具体效果越好；一次只生成一张图。若失败会返回错误原因，不要连续重试相同 prompt。",
+                pImg, new JSONArray().put("prompt")));
+    }
+
+} catch (Throwable e) {
+    // 工具定义失败不影响主流程
+}
+return tools;
     }
 }

@@ -1,6 +1,6 @@
 package com.ai.office;
 
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -45,6 +45,8 @@ public class SettingsDetailActivity extends BaseActivity {
     private static final String[] VISION_PROTOCOL_VALUES = {"", "openai", "anthropic"};
     private static final String[] SEARCH_RECENCY_VALUES = {"noLimit", "oneDay", "oneWeek", "oneMonth", "oneYear"};
     private static final String[] READER_FORMAT_VALUES = {"markdown", "text"};
+
+    private static final char LF = (char) 10;
 
     private String[] themeLabels() {
         Context c = this;
@@ -120,7 +122,10 @@ public class SettingsDetailActivity extends BaseActivity {
         if ("permission".equals(c)) return LanguageManager.t(ctx, "permission_title", "权限");
         if ("balance".equals(c)) return LanguageManager.t(ctx, "balance_title", "余额查询");
         if ("language".equals(c)) return LanguageManager.t(ctx, "lang_title", "语言");
-        return LanguageManager.t(ctx, "settings", "设置");
+if ("experimental".equals(c)) return LanguageManager.t(ctx, "experimental_title", "实验性功能");
+if ("about".equals(c)) return LanguageManager.t(ctx, "about_title", "关于");
+if ("imagegen".equals(c)) return LanguageManager.t(ctx, "imagegen_title", "文生图");
+return LanguageManager.t(ctx, "settings", "设置");
     }
 
     private void buildCategory(String c) {
@@ -138,7 +143,204 @@ public class SettingsDetailActivity extends BaseActivity {
         else if ("permission".equals(c)) buildPermission();
         else if ("balance".equals(c)) buildBalance();
         else if ("language".equals(c)) buildLanguage();
+    else if ("experimental".equals(c)) buildExperimental();
+    else if ("about".equals(c)) buildAbout();
+    else if ("imagegen".equals(c)) buildImageGen();
+}
+    
+    // ============================================================
+// 关于
+// ============================================================
+
+private void buildAbout() {
+    final Context ctx = this;
+
+    addSectionTitle(LanguageManager.t(ctx, "about_section_app", "应用信息"));
+    LinearLayout c1 = addCard();
+    addValueRow(c1, LanguageManager.t(ctx, "about_app_name", "应用名"), "Ai Office",
+            new Runnable() { @Override public void run() {} });
+    addValueRow(c1, LanguageManager.t(ctx, "about_version", "版本号"), "v1.3.0",
+            new Runnable() { @Override public void run() {} });
+    addValueRow(c1, LanguageManager.t(ctx, "about_package", "包名"), "com.ai.office",
+            new Runnable() { @Override public void run() {} });
+    addValueRow(c1, LanguageManager.t(ctx, "about_author", "作者"), "WuWuoooo",
+            new Runnable() { @Override public void run() {} });
+
+    addSectionTitle(LanguageManager.t(ctx, "about_section_links", "相关链接"));
+    LinearLayout c2 = addCard();
+    final String githubUrl = "https://github.com/WuWuoooo/Ai-Office-android";
+    addValueRow(c2, LanguageManager.t(ctx, "about_github", "GitHub 仓库"),
+            "WuWuoooo/Ai-Office-android",
+            new Runnable() {
+                @Override public void run() {
+                    try {
+                        Intent it = new Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl));
+                        startActivity(it);
+                    } catch (Throwable t) {
+                        Toast.makeText(SettingsDetailActivity.this,
+                                LanguageManager.t(SettingsDetailActivity.this, "about_open_link_fail", "无法打开链接"),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+    addValueRow(c2, LanguageManager.t(ctx, "about_license", "开源声明"),
+            LanguageManager.t(ctx, "about_license_value", "零第三方依赖"),
+            new Runnable() { @Override public void run() {} });
+    addHint(LanguageManager.t(ctx, "about_desc",
+            "Ai Office 是一款运行在 Android 上的 AI 办公助手。"));
+
+    addSectionTitle(LanguageManager.t(ctx, "about_section_language", "语言"));
+    LinearLayout c3 = addCard();
+    addValueRow(c3, LanguageManager.t(ctx, "about_language", "当前语言"),
+            currentLanguageLabel(),
+            new Runnable() {
+                @Override public void run() { showLanguagePicker(); }
+            });
+    addHint(LanguageManager.t(ctx, "about_language_hint",
+            "点击可切换语言；设置页立即生效，其他页面下次进入时生效。"));
+
+    addSectionTitle(LanguageManager.t(ctx, "about_section_thanks", "致谢"));
+    LinearLayout c4 = addCard();
+    addHint(LanguageManager.t(ctx, "about_thanks_text",
+            "感谢所有为 AI Office 提供反馈、建议与测试的用户。"));
+}
+
+// ============================================================
+// 文生图
+// ============================================================
+
+private void buildImageGen() {
+    Context ctx = this;
+    addSectionTitle(LanguageManager.t(ctx, "imagegen_section", "文生图模型"));
+    LinearLayout c1 = addCard();
+
+    final String curProvider = prefs.getString("image_gen_provider", "zhipu");
+
+    addValueRow(c1, LanguageManager.t(ctx, "imagegen_provider", "供应商"),
+            ImageGenConfig.nameOf(curProvider),
+            new Runnable() { @Override public void run() { pickImageGenProvider(); } });
+    addValueRow(c1, LanguageManager.t(ctx, "imagegen_base_url", "API 地址"),
+            shortText(prefs.getString("image_gen_base_url", ""),
+                      shortText(ImageGenConfig.urlOf(curProvider), LanguageManager.t(ctx, "ai_unset", "（未设置）"))),
+            new Runnable() { @Override public void run() {
+                editText(LanguageManager.t(SettingsDetailActivity.this, "imagegen_edit_base_url", "文生图 API 地址（留空用预设）"),
+                        "image_gen_base_url", "", false);
+            }});
+    addValueRow(c1, LanguageManager.t(ctx, "imagegen_api_key", "API Key"),
+            maskKey(prefs.getString("image_gen_api_key", "")),
+            new Runnable() { @Override public void run() {
+                editText(LanguageManager.t(SettingsDetailActivity.this, "imagegen_edit_api_key", "文生图 API Key（留空用主配置）"),
+                        "image_gen_api_key", "", true);
+            }});
+    addValueRow(c1, LanguageManager.t(ctx, "imagegen_model", "模型"),
+            shortText(prefs.getString("image_gen_model", ""),
+                      shortText(ImageGenConfig.modelOf(curProvider), LanguageManager.t(ctx, "ai_unset", "（未设置）"))),
+            new Runnable() { @Override public void run() {
+                editText(LanguageManager.t(SettingsDetailActivity.this, "imagegen_edit_model", "文生图模型（留空用预设）"),
+                        "image_gen_model", "", false);
+            }});
+    addValueRow(c1, LanguageManager.t(ctx, "imagegen_size", "默认尺寸"),
+            shortText(prefs.getString("image_gen_size", ""),
+                      firstSize(ImageGenConfig.sizesOf(curProvider))),
+            new Runnable() { @Override public void run() {
+                String[] sizes = ImageGenConfig.sizesOf(curProvider);
+                if (sizes == null || sizes.length == 0) sizes = new String[]{"1024x1024"};
+                pickSingle(LanguageManager.t(SettingsDetailActivity.this, "imagegen_size", "默认尺寸"),
+                        "image_gen_size", sizes, sizes, "1024x1024");
+            }});
+
+    addHint(LanguageManager.t(ctx, "imagegen_hint",
+            "留空的项会自动使用 AI 接入里的配置。")
+          + (char) 10
+          + "智谱 CogView：地址 https://open.bigmodel.cn/api/paas/v4，模型 cogview-4。"
+          + (char) 10
+          + "OpenAI DALL-E：地址 https://api.openai.com/v1，模型 dall-e-3。"
+          + (char) 10
+          + "SiliconFlow：地址 https://api.siliconflow.cn/v1，模型 Kwai-Kolors/Kolors。");
+}
+
+private String firstSize(String[] arr) {
+    if (arr == null || arr.length == 0) return "1024x1024";
+    return arr[0];
+}
+
+private void pickImageGenProvider() {
+    final String[] ids = ImageGenConfig.IDS;
+    final String[] names = ImageGenConfig.allNames();
+    String cur = prefs.getString("image_gen_provider", "zhipu");
+    final int sel = ImageGenConfig.indexOf(cur);
+    GlassMenuDialog.showItems(this,
+            LanguageManager.t(this, "imagegen_pick_provider", "选择文生图供应商"),
+            withCheck(names, sel),
+            new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int which) {
+                    d.dismiss();
+                    String id = ids[which];
+                    prefs.edit().putString("image_gen_provider", id).commit();
+                    prefs.edit().remove("image_gen_base_url").commit();
+                    prefs.edit().remove("image_gen_model").commit();
+                    prefs.edit().remove("image_gen_size").commit();
+                    recreate();
+                }
+            });
+}
+
+private String currentLanguageLabel() {
+    try {
+        String id = LanguageManager.getCurrentId(this);
+        if (LanguageManager.LANG_ZH.equals(id)) return "简体中文";
+        if (LanguageManager.LANG_EN.equals(id)) return "English";
+        List<String[]> cs = LanguageManager.listCustom(this);
+        for (int i = 0; i < cs.size(); i++) {
+            if (cs.get(i)[0].equals(id)) return cs.get(i)[1];
+        }
+        return id;
+    } catch (Throwable t) { return "简体中文"; }
+}
+
+private void showLanguagePicker() {
+    try {
+        final String curId = LanguageManager.getCurrentId(this);
+        final List<String> labels = new ArrayList<String>();
+        final List<String> ids = new ArrayList<String>();
+
+        List<String[]> builtin = LanguageManager.listBuiltin();
+        for (int i = 0; i < builtin.size(); i++) {
+            String id = builtin.get(i)[0];
+            String name = builtin.get(i)[1];
+            labels.add(name + (id.equals(curId) ? "  ✓" : ""));
+            ids.add(id);
+        }
+        List<String[]> custom = LanguageManager.listCustom(this);
+        for (int i = 0; i < custom.size(); i++) {
+            String id = custom.get(i)[0];
+            String name = custom.get(i)[1];
+            labels.add(name + (id.equals(curId) ? "  ✓" : ""));
+            ids.add(id);
+        }
+
+        final String[] fIds = ids.toArray(new String[0]);
+        final String[] fLabels = labels.toArray(new String[0]);
+
+        GlassMenuDialog.showItems(this,
+                LanguageManager.t(this, "lang_title", "语言"),
+                fLabels,
+                new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        if (which >= 0 && which < fIds.length) {
+                            LanguageManager.setCurrentId(SettingsDetailActivity.this, fIds[which]);
+                            Toast.makeText(SettingsDetailActivity.this,
+                                    LanguageManager.t(SettingsDetailActivity.this, "lang_switched", "已切换语言"),
+                                    Toast.LENGTH_SHORT).show();
+                            recreate();
+                        }
+                    }
+                });
+    } catch (Throwable t) {
+        Toast.makeText(this, "打开语言列表失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
     }
+}
 
     // ============================================================
     // 通用 UI 辅助
@@ -154,16 +356,28 @@ public class SettingsDetailActivity extends BaseActivity {
         container.addView(tv);
     }
 
-    private LinearLayout addCard() {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
+private LinearLayout addCard() {
+    LinearLayout card = new LinearLayout(this);
+    card.setOrientation(LinearLayout.VERTICAL);
+    if (UiOverrides.glassEnabled(this)) {
+        final LinearLayout fCard = card;
+        card.post(new Runnable() {
+            @Override public void run() {
+                try {
+                    android.graphics.drawable.Drawable d = UiOverrides.cardBgDrawable(SettingsDetailActivity.this, fCard);
+                    if (d != null) fCard.setBackgroundDrawable(d);
+                } catch (Throwable t) {}
+            }
+        });
+    } else {
         card.setBackgroundResource(R.drawable.card_bg);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        card.setLayoutParams(lp);
-        container.addView(card);
-        return card;
     }
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    card.setLayoutParams(lp);
+    container.addView(card);
+    return card;
+}
 
     private void addHint(String text) {
         TextView tv = new TextView(this);
@@ -252,7 +466,7 @@ public class SettingsDetailActivity extends BaseActivity {
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10),
                       UiUtils.dp(this, 12), UiUtils.dp(this, 10));
 
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(title)
                 .setView(et)
                 .setPositiveButton(LanguageManager.t(this, "common_save", "保存"), new DialogInterface.OnClickListener() {
@@ -265,7 +479,7 @@ public class SettingsDetailActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
-                .create().show();
+                .show();
     }
 
     private void editMultiline(String title, final String key, String def) {
@@ -280,7 +494,7 @@ public class SettingsDetailActivity extends BaseActivity {
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10),
                       UiUtils.dp(this, 12), UiUtils.dp(this, 10));
 
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(title)
                 .setView(et)
                 .setPositiveButton(LanguageManager.t(this, "common_save", "保存"), new DialogInterface.OnClickListener() {
@@ -293,7 +507,7 @@ public class SettingsDetailActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
-                .create().show();
+                .show();
     }
 
     private void editNumber(String title, final String key, String def) {
@@ -305,7 +519,7 @@ public class SettingsDetailActivity extends BaseActivity {
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10),
                       UiUtils.dp(this, 12), UiUtils.dp(this, 10));
 
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(title)
                 .setView(et)
                 .setPositiveButton(LanguageManager.t(this, "common_save", "保存"), new DialogInterface.OnClickListener() {
@@ -318,7 +532,7 @@ public class SettingsDetailActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
-                .create().show();
+                .show();
     }
 
     private void pickSingle(String title, final String key, String[] values, String[] labels, String defValue) {
@@ -326,10 +540,9 @@ public class SettingsDetailActivity extends BaseActivity {
         int sel = 0;
         for (int i = 0; i < values.length; i++) if (values[i].equals(cur)) sel = i;
         final String[] fV = values;
-        final String[] fL = labels;
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(title)
-                .setSingleChoiceItems(fL, sel, new DialogInterface.OnClickListener() {
+                .setSingleChoiceItems(labels, sel, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         String v = fV[which];
                         if (v.length() == 0) prefs.edit().remove(key).commit();
@@ -338,7 +551,8 @@ public class SettingsDetailActivity extends BaseActivity {
                         recreate();
                     }
                 })
-                .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null).create().show();
+                .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
+                .show();
     }
 
     private String shortText(String s, String fallback) {
@@ -406,15 +620,26 @@ public class SettingsDetailActivity extends BaseActivity {
                 "切换供应商时会自动设置协议，一般不用手动改。Anthropic 使用 /v1/messages，其余使用 /chat/completions。"));
     }
 
+    private String[] withCheck(String[] labels, int selectedIdx) {
+        if (labels == null) return new String[0];
+        String[] out = new String[labels.length];
+        for (int i = 0; i < labels.length; i++) {
+            out[i] = (i == selectedIdx ? "✓ " : "   ") + labels[i];
+        }
+        return out;
+    }
+
     private void pickProvider() {
         final String[] ids = AIProvider.IDS;
         final String[] names = AIProvider.allNames();
         String cur = prefs.getString("provider", "deepseek");
         int sel = AIProvider.indexOf(cur);
-        new AlertDialog.Builder(this)
-                .setTitle(LanguageManager.t(this, "ai_pick_provider", "选择 AI 供应商"))
-                .setSingleChoiceItems(names, sel, new DialogInterface.OnClickListener() {
+        GlassMenuDialog.showItems(this,
+                LanguageManager.t(this, "ai_pick_provider", "选择 AI 供应商"),
+                withCheck(names, sel),
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
                         String id = ids[which];
                         prefs.edit().putString("provider", id).commit();
                         String url = AIProvider.urlOf(id);
@@ -422,11 +647,9 @@ public class SettingsDetailActivity extends BaseActivity {
                         String models = AIProvider.modelsOf(id);
                         if (models != null && models.length() > 0) prefs.edit().putString("model_presets", models).commit();
                         prefs.edit().putString("protocol", AIProvider.protocolOf(id)).commit();
-                        d.dismiss();
                         recreate();
                     }
-                })
-                .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null).create().show();
+                });
     }
 
     // ============================================================
@@ -592,17 +815,19 @@ public class SettingsDetailActivity extends BaseActivity {
 
     private void pickSearchProvider() {
         String cur = prefs.getString("search_provider", "bing");
-        int sel = SearchProvider.indexOf(cur);
-        new AlertDialog.Builder(this)
-                .setTitle(LanguageManager.t(this, "search_pick_provider", "选择搜索引擎"))
-                .setSingleChoiceItems(SearchProvider.allNames(), sel, new DialogInterface.OnClickListener() {
+        final int sel = SearchProvider.indexOf(cur);
+        final String[] ids = SearchProvider.IDS;
+        final String[] names = SearchProvider.allNames();
+        GlassMenuDialog.showItems(this,
+                LanguageManager.t(this, "search_pick_provider", "选择搜索引擎"),
+                withCheck(names, sel),
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
-                        prefs.edit().putString("search_provider", SearchProvider.IDS[which]).commit();
                         d.dismiss();
+                        prefs.edit().putString("search_provider", ids[which]).commit();
                         recreate();
                     }
-                })
-                .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null).create().show();
+                });
     }
 
     // ============================================================
@@ -669,30 +894,30 @@ public class SettingsDetailActivity extends BaseActivity {
 
         addHint(LanguageManager.t(ctx, "realtime_hint",
                 "地址 / 模型 / Key 留空时用供应商预设；Key 若也为空，则回退到「AI 接入」里的 Key。"
-              + "\nGLM-Realtime 官方地址：wss://open.bigmodel.cn/api/paas/v4/realtime，模型 glm-realtime-flash，音色 tongtong/chuchui/xiaochen/jam/wangjia。"
-              + "\nOpenAI Realtime 官方地址：wss://api.openai.com/v1/realtime，模型 gpt-4o-realtime-preview，音色 alloy/echo/shimmer/verse。"));
+              + LF + "GLM-Realtime 官方地址：wss://open.bigmodel.cn/api/paas/v4/realtime，模型 glm-realtime-flash，音色 tongtong/chuchui/xiaochen/jam/wangjia。"
+              + LF + "OpenAI Realtime 官方地址：wss://api.openai.com/v1/realtime，模型 gpt-4o-realtime-preview，音色 alloy/echo/shimmer/verse。"));
     }
 
     private void pickRealtimeProvider() {
         final String[] ids = RealtimeConfig.IDS;
         final String[] names = RealtimeConfig.allNames();
         String cur = prefs.getString("realtime_provider", "glm-realtime");
-        int sel = RealtimeConfig.indexOf(cur);
-        new AlertDialog.Builder(this)
-                .setTitle(LanguageManager.t(this, "realtime_pick_provider", "选择实时通话模型供应商"))
-                .setSingleChoiceItems(names, sel, new DialogInterface.OnClickListener() {
+        final int sel = RealtimeConfig.indexOf(cur);
+        GlassMenuDialog.showItems(this,
+                LanguageManager.t(this, "realtime_pick_provider", "选择实时通话模型供应商"),
+                withCheck(names, sel),
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
                         String id = ids[which];
                         prefs.edit().putString("realtime_provider", id).commit();
                         prefs.edit().remove("realtime_url").commit();
                         prefs.edit().remove("realtime_model").commit();
                         prefs.edit().remove("realtime_protocol").commit();
                         prefs.edit().remove("realtime_voice").commit();
-                        d.dismiss();
                         recreate();
                     }
-                })
-                .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null).create().show();
+                });
     }
 
     // ============================================================
@@ -757,7 +982,7 @@ public class SettingsDetailActivity extends BaseActivity {
 
         addHint(LanguageManager.t(ctx, "tts_hint",
                 "「启用 TTS 朗读」控制总开关；「自动朗读 AI 回复」只控制每轮回答后是否自动读，关闭它仍可用消息末尾的「朗读」按钮手动读。"
-              + "\n智谱 glm-tts 示例：地址 https://open.bigmodel.cn/api/paas/v4/audio/speech，模型 glm-tts，音色 tongtong，格式 wav。留空 API 地址则使用系统 TTS。"));
+              + LF + "智谱 glm-tts 示例：地址 https://open.bigmodel.cn/api/paas/v4/audio/speech，模型 glm-tts，音色 tongtong，格式 wav。留空 API 地址则使用系统 TTS。"));
     }
 
     // ============================================================
@@ -889,7 +1114,7 @@ public class SettingsDetailActivity extends BaseActivity {
         else items = new String[]{
                 LanguageManager.t(ctx, "appearance_from_gallery", "从相册选择图片"),
                 LanguageManager.t(ctx, "appearance_clear_bg", "清除背景图")};
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(LanguageManager.t(ctx, "appearance_pick_bg", "聊天背景图"))
                 .setItems(items, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
@@ -917,7 +1142,7 @@ public class SettingsDetailActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
-                .create().show();
+                .show();
     }
 
     @Override
@@ -1036,7 +1261,7 @@ public class SettingsDetailActivity extends BaseActivity {
         addSectionTitle(LanguageManager.t(ctx, "memory_section", "长期记忆"));
         LinearLayout c1 = addCard();
         int count = MemoryStore.getAllKeys(this).size();
-        addValueRow(c1, LanguageManager.t(ctx, "memory_manage", "管理记忆条目"), count + "", 
+        addValueRow(c1, LanguageManager.t(ctx, "memory_manage", "管理记忆条目"), count + "",
                 new Runnable() { @Override public void run() { showMemoryManager(); } });
         addHint(LanguageManager.t(ctx, "memory_hint", "AI 每次对话都会参考这些记忆；可在对话框里手动添加，也可点条目删除。"));
     }
@@ -1052,7 +1277,7 @@ public class SettingsDetailActivity extends BaseActivity {
         }
         items.add(LanguageManager.t(this, "memory_add_new", "＋ 新增记忆"));
 
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(LanguageManager.t(this, "memory_picker_title", "长期记忆（共 %d 条）").replace("%d", String.valueOf(entries.size())))
                 .setItems(items.toArray(new String[items.size()]), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
@@ -1062,14 +1287,14 @@ public class SettingsDetailActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(LanguageManager.t(this, "common_close", "关闭"), null)
-                .create().show();
+                .show();
     }
 
     private void showMemoryDetail(final String key, String content) {
         final String[] ops = new String[]{
                 LanguageManager.t(this, "memory_edit", "编辑"),
                 LanguageManager.t(this, "memory_delete", "删除")};
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(key)
                 .setMessage(content.length() > 2000 ? content.substring(0, 2000) + "…" : content)
                 .setItems(ops, new DialogInterface.OnClickListener() {
@@ -1077,7 +1302,7 @@ public class SettingsDetailActivity extends BaseActivity {
                         d.dismiss();
                         if (which == 0) addOrEditMemory(key);
                         else {
-                            new AlertDialog.Builder(SettingsDetailActivity.this)
+                            new GlassDialog.Builder(SettingsDetailActivity.this)
                                     .setTitle(LanguageManager.t(SettingsDetailActivity.this, "memory_delete_confirm", "删除记忆 %s？").replace("%s", key))
                                     .setPositiveButton(LanguageManager.t(SettingsDetailActivity.this, "common_delete", "删除"), new DialogInterface.OnClickListener() {
                                         @Override public void onClick(DialogInterface dd, int w) {
@@ -1089,73 +1314,87 @@ public class SettingsDetailActivity extends BaseActivity {
                                             recreate();
                                         }
                                     })
-                                    .setNegativeButton(LanguageManager.t(SettingsDetailActivity.this, "common_cancel", "取消"), null).create().show();
+                                    .setNegativeButton(LanguageManager.t(SettingsDetailActivity.this, "common_cancel", "取消"), null)
+                                    .show();
                         }
                     }
                 })
-                .setNegativeButton(LanguageManager.t(this, "common_close", "关闭"), null).create().show();
+                .setNegativeButton(LanguageManager.t(this, "common_close", "关闭"), null)
+                .show();
     }
 
-    private void addOrEditMemory(final String oldKey) {
-        final EditText etKey = new EditText(this);
-        etKey.setHint(LanguageManager.t(this, "memory_key_hint", "记忆标识（英文/数字，如 user_pref）"));
-        etKey.setTextSize(15);
-        etKey.setInputType(InputType.TYPE_CLASS_TEXT);
-        etKey.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10), UiUtils.dp(this, 12), UiUtils.dp(this, 10));
-        if (oldKey != null) etKey.setText(oldKey);
+private void addOrEditMemory(final String oldKey) {
+    final EditText etKey = new EditText(this);
+    etKey.setHint(LanguageManager.t(this, "memory_key_hint", "记忆标识（英文/数字，如 user_pref）"));
+    etKey.setTextSize(15);
+    etKey.setSingleLine(true);
+    etKey.setIncludeFontPadding(false);
+    etKey.setGravity(Gravity.CENTER_VERTICAL);
+    etKey.setInputType(InputType.TYPE_CLASS_TEXT);
+    etKey.setPadding(UiUtils.dp(this, 14), 0, UiUtils.dp(this, 14), 0);
+    etKey.setBackgroundDrawable(UiOverrides.editBgDrawable(this));
+    etKey.setMinHeight(UiUtils.dp(this, 46));
+    if (oldKey != null) etKey.setText(oldKey);
 
-        final EditText etVal = new EditText(this);
-        etVal.setHint(LanguageManager.t(this, "memory_value_hint", "记忆内容"));
-        etVal.setTextSize(15);
-        etVal.setGravity(Gravity.TOP | Gravity.LEFT);
-        etVal.setMinLines(3);
-        etVal.setMaxLines(10);
-        etVal.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        etVal.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10), UiUtils.dp(this, 12), UiUtils.dp(this, 10));
-        if (oldKey != null) {
-            try {
-                List<String[]> es = MemoryStore.getAllEntries(this);
-                for (int i = 0; i < es.size(); i++) {
-                    if (oldKey.equals(es.get(i)[0])) { etVal.setText(es.get(i)[1]); break; }
-                }
-            } catch (Throwable t) {}
-        }
+    final EditText etVal = new EditText(this);
+    etVal.setHint(LanguageManager.t(this, "memory_value_hint", "记忆内容"));
+    etVal.setTextSize(15);
+    etVal.setIncludeFontPadding(false);
+    etVal.setGravity(Gravity.TOP | Gravity.LEFT);
+    etVal.setMinLines(3);
+    etVal.setMaxLines(10);
+    etVal.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+    etVal.setPadding(UiUtils.dp(this, 14), UiUtils.dp(this, 10),
+                     UiUtils.dp(this, 14), UiUtils.dp(this, 10));
+    etVal.setBackgroundDrawable(UiOverrides.editBgDrawable(this));
+    if (oldKey != null) {
+        try {
+            List<String[]> es = MemoryStore.getAllEntries(this);
+            for (int i = 0; i < es.size(); i++) {
+                if (oldKey.equals(es.get(i)[0])) { etVal.setText(es.get(i)[1]); break; }
+            }
+        } catch (Throwable t) {}
+    }
 
-        LinearLayout wrap = new LinearLayout(this);
-        wrap.setOrientation(LinearLayout.VERTICAL);
-        wrap.setPadding(UiUtils.dp(this, 16), UiUtils.dp(this, 12), UiUtils.dp(this, 16), UiUtils.dp(this, 12));
-        wrap.addView(etKey, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        wrap.addView(etVal, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    LinearLayout wrap = new LinearLayout(this);
+    wrap.setOrientation(LinearLayout.VERTICAL);
+    LinearLayout.LayoutParams kp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    wrap.addView(etKey, kp);
+    LinearLayout.LayoutParams vp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    vp.topMargin = UiUtils.dp(this, 12);
+    wrap.addView(etVal, vp);
 
-        new AlertDialog.Builder(this)
-                .setTitle(oldKey == null
-                        ? LanguageManager.t(this, "memory_add_title", "新增记忆")
-                        : LanguageManager.t(this, "memory_edit_title", "编辑记忆"))
-                .setView(wrap)
-                .setPositiveButton(LanguageManager.t(this, "common_save", "保存"), new DialogInterface.OnClickListener() {
-                    @Override public void onClick(DialogInterface d, int which) {
-                        String k = etKey.getText().toString().trim();
-                        String v = etVal.getText().toString().trim();
-                        if (k.length() == 0) {
-                            Toast.makeText(SettingsDetailActivity.this,
-                                    LanguageManager.t(SettingsDetailActivity.this, "memory_key_required", "标识不能为空"),
-                                    Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        if (oldKey != null && !oldKey.equals(k)) {
-                            MemoryStore.delete(SettingsDetailActivity.this, oldKey);
-                        }
-                        MemoryStore.save(SettingsDetailActivity.this, k, v);
-                        d.dismiss();
+    new GlassDialog.Builder(this)
+            .setTitle(oldKey == null
+                    ? LanguageManager.t(this, "memory_add_title", "新增记忆")
+                    : LanguageManager.t(this, "memory_edit_title", "编辑记忆"))
+            .setView(wrap)
+            .setPositiveButton(LanguageManager.t(this, "common_save", "保存"), new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int which) {
+                    String k = etKey.getText().toString().trim();
+                    String v = etVal.getText().toString().trim();
+                    if (k.length() == 0) {
                         Toast.makeText(SettingsDetailActivity.this,
-                                LanguageManager.t(SettingsDetailActivity.this, "memory_saved", "已保存"),
+                                LanguageManager.t(SettingsDetailActivity.this, "memory_key_required", "标识不能为空"),
                                 Toast.LENGTH_SHORT).show();
-                        recreate();
+                        return;
                     }
-                })
-                .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
-                .create().show();
-    }
+                    if (oldKey != null && !oldKey.equals(k)) {
+                        MemoryStore.delete(SettingsDetailActivity.this, oldKey);
+                    }
+                    MemoryStore.save(SettingsDetailActivity.this, k, v);
+                    d.dismiss();
+                    Toast.makeText(SettingsDetailActivity.this,
+                            LanguageManager.t(SettingsDetailActivity.this, "memory_saved", "已保存"),
+                            Toast.LENGTH_SHORT).show();
+                    recreate();
+                }
+            })
+            .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
+            .show();
+}
 
     // ============================================================
     // 系统提示词
@@ -1185,15 +1424,9 @@ public class SettingsDetailActivity extends BaseActivity {
         et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         et.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 10), UiUtils.dp(this, 12), UiUtils.dp(this, 10));
 
-        LinearLayout wrap = new LinearLayout(this);
-        wrap.setOrientation(LinearLayout.VERTICAL);
-        wrap.setPadding(UiUtils.dp(this, 12), UiUtils.dp(this, 6), UiUtils.dp(this, 12), UiUtils.dp(this, 6));
-        wrap.addView(et, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(LanguageManager.t(this, "prompt_dialog_title", "系统提示词（留空使用默认）"))
-                .setView(wrap)
+                .setView(et)
                 .setPositiveButton(LanguageManager.t(this, "common_save", "保存"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         String v = et.getText().toString().trim();
@@ -1203,7 +1436,7 @@ public class SettingsDetailActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
-                .create().show();
+                .show();
     }
 
     // ============================================================
@@ -1248,27 +1481,28 @@ public class SettingsDetailActivity extends BaseActivity {
 
         addHint(LanguageManager.t(ctx, "plugin_hint",
                 "把 .json 插件放在 /sdcard/AI/plugins/ 下，重启 App 即生效。extension 为 settings_item 的 UI 插件会出现在上方。"
-              + "\naction.kind = \"ui_change\" 的插件可以覆盖 App 配色，见 bubble_theme.json 示例。"));
+              + LF + "action.kind = ui_change 的插件可以覆盖 App 配色，见 bubble_theme.json 示例。"));
     }
 
     private void showUiOverrides() {
         try {
             String list = UiOverrides.listOverrides(this);
-            new AlertDialog.Builder(this)
+            new GlassDialog.Builder(this)
                     .setTitle(LanguageManager.t(this, "ui_override_list_title", "当前 UI 覆盖"))
                     .setMessage(list)
                     .setPositiveButton(LanguageManager.t(this, "common_close", "关闭"), null)
-                    .create().show();
+                    .show();
         } catch (Throwable t) {
             Toast.makeText(this, LanguageManager.t(this, "plugin_read_fail", "读取失败: ") + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
     private void confirmClearUiOverrides() {
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(LanguageManager.t(this, "plugin_clear_confirm_title", "清除所有 UI 覆盖？"))
                 .setMessage(LanguageManager.t(this, "plugin_clear_confirm_msg",
-                        "将把 App 的颜色 / 尺寸恢复为默认值（不影响其它设置）。\n\n提示：清除后回到主界面即可看到效果。"))
+                        "将把 App 的颜色 / 尺寸恢复为默认值（不影响其它设置）。"
+                      + LF + LF + "提示：清除后回到主界面即可看到效果。"))
                 .setPositiveButton(LanguageManager.t(this, "chat_clear", "清除"), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int w) {
                         UiOverrides.clearAll(SettingsDetailActivity.this);
@@ -1280,7 +1514,7 @@ public class SettingsDetailActivity extends BaseActivity {
                     }
                 })
                 .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
-                .create().show();
+                .show();
     }
 
     private void showPlugins() {
@@ -1289,41 +1523,41 @@ public class SettingsDetailActivity extends BaseActivity {
             List<JSONObject> aiPlugins = PluginManager.loadPlugins(this);
             List<JSONObject> uiPlugins = PluginManager.loadUiPlugins(this);
             StringBuilder sb = new StringBuilder();
-            sb.append(LanguageManager.t(ctx, "plugin_count_ai", "AI 工具插件：%d 个").replace("%d", String.valueOf(aiPlugins.size()))).append("\n");
-            sb.append(LanguageManager.t(ctx, "plugin_count_ui", "UI 扩展插件：%d 个").replace("%d", String.valueOf(uiPlugins.size()))).append("\n\n");
+            sb.append(LanguageManager.t(ctx, "plugin_count_ai", "AI 工具插件：%d 个").replace("%d", String.valueOf(aiPlugins.size()))).append(LF);
+            sb.append(LanguageManager.t(ctx, "plugin_count_ui", "UI 扩展插件：%d 个").replace("%d", String.valueOf(uiPlugins.size()))).append(LF).append(LF);
 
             if (!aiPlugins.isEmpty()) {
-                sb.append(LanguageManager.t(ctx, "plugin_section_ai_header", "── AI 工具插件 ──")).append("\n");
+                sb.append(LanguageManager.t(ctx, "plugin_section_ai_header", "── AI 工具插件 ──")).append(LF);
                 for (int i = 0; i < aiPlugins.size(); i++) {
                     JSONObject p = aiPlugins.get(i);
                     sb.append("• ").append(p.optString("name", ""))
-                      .append(" [").append(p.optString("_type", "prompt")).append("]\n");
+                      .append(" [").append(p.optString("_type", "prompt")).append("]").append(LF);
                     String d = p.optString("description", "");
-                    if (d.length() > 0) sb.append("  ").append(d).append("\n");
+                    if (d.length() > 0) sb.append("  ").append(d).append(LF);
                 }
-                sb.append("\n");
+                sb.append(LF);
             }
             if (!uiPlugins.isEmpty()) {
-                sb.append(LanguageManager.t(ctx, "plugin_section_ui_header", "── UI 扩展插件 ──")).append("\n");
+                sb.append(LanguageManager.t(ctx, "plugin_section_ui_header", "── UI 扩展插件 ──")).append(LF);
                 for (int i = 0; i < uiPlugins.size(); i++) {
                     JSONObject p = uiPlugins.get(i);
                     sb.append("• ").append(p.optString("title", p.optString("name", "")))
-                      .append(" → ").append(p.optString("extension", "")).append("\n");
+                      .append(" → ").append(p.optString("extension", "")).append(LF);
                     String d = p.optString("description", "");
-                    if (d.length() > 0) sb.append("  ").append(d).append("\n");
+                    if (d.length() > 0) sb.append("  ").append(d).append(LF);
                 }
-                sb.append("\n");
+                sb.append(LF);
             }
 
-            sb.append(LanguageManager.t(ctx, "plugin_dir", "插件目录: /sdcard/AI/plugins/")).append("\n");
-            sb.append(LanguageManager.t(ctx, "plugin_ext_list", "extension 可选：main_menu / message_long_press / input_plus / settings_item / toolbar")).append("\n");
+            sb.append(LanguageManager.t(ctx, "plugin_dir", "插件目录: /sdcard/AI/plugins/")).append(LF);
+            sb.append(LanguageManager.t(ctx, "plugin_ext_list", "extension 可选：main_menu / message_long_press / input_plus / settings_item / toolbar")).append(LF);
             sb.append(LanguageManager.t(ctx, "plugin_kind_list", "action.kind 可选：prompt / http / script / ui_change"));
 
-            new AlertDialog.Builder(this)
+            new GlassDialog.Builder(this)
                     .setTitle(LanguageManager.t(this, "more_menu_view_loaded_plugins", "查看已加载的插件"))
                     .setMessage(sb.toString())
                     .setPositiveButton(LanguageManager.t(this, "common_know", "知道了"), null)
-                    .create().show();
+                    .show();
         } catch (Throwable t) {
             Toast.makeText(this, LanguageManager.t(this, "plugin_read_fail", "读取失败: ") + t.getMessage(), Toast.LENGTH_LONG).show();
         }
@@ -1335,7 +1569,7 @@ public class SettingsDetailActivity extends BaseActivity {
             final String kind = action == null ? "prompt" : action.optString("kind", "prompt").toLowerCase();
 
             if ("script".equals(kind)) {
-                new AlertDialog.Builder(this)
+                new GlassDialog.Builder(this)
                         .setTitle(LanguageManager.t(this, "plugin_exec_script_title", "执行脚本？"))
                         .setMessage(LanguageManager.t(this, "plugin_exec_script_msg", "该插件将执行本机 shell 脚本。只在你信任插件来源时继续。"))
                         .setPositiveButton(LanguageManager.t(this, "plugin_exec", "执行"), new DialogInterface.OnClickListener() {
@@ -1344,7 +1578,8 @@ public class SettingsDetailActivity extends BaseActivity {
                                 doRunSettingsPlugin(plugin, args);
                             }
                         })
-                        .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null).create().show();
+                        .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null)
+                        .show();
                 return;
             }
             doRunSettingsPlugin(plugin, args);
@@ -1359,7 +1594,7 @@ public class SettingsDetailActivity extends BaseActivity {
                 final String result = PluginManager.executeUiAction(SettingsDetailActivity.this, plugin, args);
                 runOnUiThread(new Runnable() {
                     @Override public void run() {
-                        new AlertDialog.Builder(SettingsDetailActivity.this)
+                        new GlassDialog.Builder(SettingsDetailActivity.this)
                                 .setTitle(LanguageManager.t(SettingsDetailActivity.this, "plugin_result_title", "插件结果"))
                                 .setMessage(result == null ? "（空）" : result)
                                 .setPositiveButton(LanguageManager.t(SettingsDetailActivity.this, "common_copy", "复制"), new DialogInterface.OnClickListener() {
@@ -1369,7 +1604,7 @@ public class SettingsDetailActivity extends BaseActivity {
                                     }
                                 })
                                 .setNegativeButton(LanguageManager.t(SettingsDetailActivity.this, "common_close", "关闭"), null)
-                                .create().show();
+                                .show();
                     }
                 });
             }
@@ -1452,11 +1687,11 @@ public class SettingsDetailActivity extends BaseActivity {
                 final String result = doQueryBalance(url, key);
                 runOnUiThread(new Runnable() {
                     @Override public void run() {
-                        new AlertDialog.Builder(SettingsDetailActivity.this)
+                        new GlassDialog.Builder(SettingsDetailActivity.this)
                                 .setTitle(LanguageManager.t(SettingsDetailActivity.this, "balance_result", "余额查询结果"))
                                 .setMessage(result)
                                 .setPositiveButton(LanguageManager.t(SettingsDetailActivity.this, "common_know", "知道了"), null)
-                                .create().show();
+                                .show();
                     }
                 });
             }
@@ -1479,7 +1714,7 @@ public class SettingsDetailActivity extends BaseActivity {
             String line;
             while ((line = r.readLine()) != null) sb.append(line);
             r.close();
-            if (code != 200) return "HTTP " + code + "\n" + clip(sb.toString(), 400);
+            if (code != 200) return "HTTP " + code + LF + clip(sb.toString(), 400);
             return clip(sb.toString(), 1500);
         } catch (Throwable t) {
             return LanguageManager.t(this, "balance_fail", "查询失败: ") + t.getMessage();
@@ -1491,7 +1726,7 @@ public class SettingsDetailActivity extends BaseActivity {
     private static String clip(String s, int max) {
         if (s == null) return "";
         if (s.length() <= max) return s;
-        return s.substring(0, max) + "\n...(已截断)";
+        return s.substring(0, max) + LF + "...(已截断)";
     }
 
     // ============================================================
@@ -1580,20 +1815,22 @@ public class SettingsDetailActivity extends BaseActivity {
     }
 
     private void showDeleteLangMenu(final List<String[]> custom) {
+        if (custom == null || custom.isEmpty()) return;
         final String[] names = new String[custom.size()];
         final String[] ids = new String[custom.size()];
         for (int i = 0; i < custom.size(); i++) {
             names[i] = custom.get(i)[1];
             ids[i] = custom.get(i)[0];
         }
-        new AlertDialog.Builder(this)
-                .setTitle(LanguageManager.t(this, "lang_delete", "删除语言包"))
-                .setItems(names, new DialogInterface.OnClickListener() {
+        GlassMenuDialog.showItems(this,
+                LanguageManager.t(this, "lang_delete", "删除语言包"),
+                names,
+                new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         final String did = ids[which];
                         final String dname = names[which];
-                        new AlertDialog.Builder(SettingsDetailActivity.this)
+                        new GlassDialog.Builder(SettingsDetailActivity.this)
                                 .setTitle(LanguageManager.t(SettingsDetailActivity.this, "lang_delete_title", "删除语言包 %s？").replace("%s", dname))
                                 .setPositiveButton(LanguageManager.t(SettingsDetailActivity.this, "common_delete", "删除"), new DialogInterface.OnClickListener() {
                                     @Override public void onClick(DialogInterface dd, int w) {
@@ -1602,10 +1839,10 @@ public class SettingsDetailActivity extends BaseActivity {
                                         recreate();
                                     }
                                 })
-                                .setNegativeButton(LanguageManager.t(SettingsDetailActivity.this, "common_cancel", "取消"), null).create().show();
+                                .setNegativeButton(LanguageManager.t(SettingsDetailActivity.this, "common_cancel", "取消"), null)
+                                .show();
                     }
-                })
-                .setNegativeButton(LanguageManager.t(this, "common_cancel", "取消"), null).create().show();
+                });
     }
 
     private void exportCurrentLang() {
@@ -1616,9 +1853,9 @@ public class SettingsDetailActivity extends BaseActivity {
                     Toast.LENGTH_LONG).show();
             return;
         }
-        new AlertDialog.Builder(this)
+        new GlassDialog.Builder(this)
                 .setTitle(LanguageManager.t(this, "lang_export", "导出当前语言包"))
-                .setMessage(LanguageManager.t(this, "lang_export_done", "已导出到：") + "\n" + path)
+                .setMessage(LanguageManager.t(this, "lang_export_done", "已导出到：") + LF + path)
                 .setPositiveButton(LanguageManager.t(this, "common_share", "分享"),
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int w) {
@@ -1633,6 +1870,128 @@ public class SettingsDetailActivity extends BaseActivity {
                             }
                         })
                 .setNegativeButton(LanguageManager.t(this, "common_close", "关闭"), null)
-                .create().show();
+                .show();
+    }
+
+    // ============================================================
+    // 实验性功能
+    // ============================================================
+
+    private void buildExperimental() {
+        final Context ctx = this;
+
+        addSectionTitle(LanguageManager.t(ctx, "experimental_section", "实验性功能"));
+
+        LinearLayout c1 = addCard();
+        final boolean enabled = UiOverrides.glassEnabled(this);
+
+        addSwitchRow(c1, LanguageManager.t(ctx, "experimental_glass_enabled", "毛玻璃效果"), enabled, new SwitchListener() {
+            @Override public void onChanged(boolean checked) {
+                if (checked) {
+                    confirmEnableGlass();
+                } else {
+                    UiUtils.prefs(SettingsDetailActivity.this).edit().remove("ui_glass_enabled").commit();
+                    Toast.makeText(SettingsDetailActivity.this,
+                            LanguageManager.t(ctx, "experimental_disabled_toast", "已关闭毛玻璃效果"),
+                            Toast.LENGTH_SHORT).show();
+                    recreate();
+                }
+            }
+        });
+
+        if (enabled) {
+            final String[] alphaLabels = new String[]{"80%", "70%", "60%", "50%"};
+            final String[] alphaValues = new String[]{"204", "178", "153", "128"};
+            int curAlpha = UiOverrides.glassAlphaValue(this);
+            String curLabel = "80%";
+            for (int i = 0; i < alphaValues.length; i++) {
+                if (String.valueOf(curAlpha).equals(alphaValues[i])) { curLabel = alphaLabels[i]; break; }
+            }
+            addValueRow(c1, LanguageManager.t(ctx, "experimental_glass_alpha", "气泡不透明度"),
+                    curLabel, new Runnable() {
+                @Override public void run() {
+                    pickSingle(LanguageManager.t(ctx, "experimental_glass_alpha", "气泡不透明度"),
+                            "ui_glass_alpha", alphaValues, alphaLabels, "204");
+                }
+            });
+        }
+
+        addHint(LanguageManager.t(ctx, "experimental_glass_hint",
+                "毛玻璃效果会对聊天背景做一次高斯模糊，气泡、卡片、工具面板、"
+              + "历史对话项、顶栏、输入栏、抽屉等 UI 元素变为半透明玻璃质感，"
+              + "视觉上接近 iOS 的 Liquid Glass。"
+              + LF + LF
+              + "这是实验性功能，可能需要约 1-2 秒处理背景图；"
+              + "低端机型或超大背景图可能出现短暂卡顿。请谨慎开启。"));
+    }
+
+    private void confirmEnableGlass() {
+        final Context ctx = this;
+        final int waitSec = 5;
+        final Dialog[] holder = new Dialog[1];
+        final android.os.CountDownTimer[] timer = new android.os.CountDownTimer[1];
+        final TextView[] okBtn = new TextView[1];
+
+        holder[0] = new GlassDialog.Builder(this)
+                .setTitle(LanguageManager.t(ctx, "experimental_confirm_title", "实验性功能确认"))
+                .setMessage(LanguageManager.t(ctx, "experimental_confirm_msg",
+                        "这是实验性功能，如果您需要开启，请您先确定您在做什么。"
+                      + LF + LF
+                      + "开启后所有 UI 元素将呈现玻璃质感，可能需要 1-2 秒处理背景；"
+                      + "低端机型可能出现卡顿。"
+                      + LF + LF
+                      + "请等待 5 秒后确认。"))
+                .setPositiveButton(LanguageManager.t(ctx, "experimental_confirm_ok_wait", "我确定（%d）").replace("%d", String.valueOf(waitSec)), null)
+                .setNegativeButton(LanguageManager.t(ctx, "common_cancel", "取消"), new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) {
+                        d.dismiss();
+                        recreate();
+                    }
+                })
+                .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override public void onDismiss(DialogInterface d) {
+                        try { if (timer[0] != null) timer[0].cancel(); } catch (Throwable t) {}
+                    }
+                })
+                .show();
+
+        okBtn[0] = GlassDialog.Builder.getButton(holder[0], DialogInterface.BUTTON_POSITIVE);
+        if (okBtn[0] != null) {
+            okBtn[0].setEnabled(false);
+            okBtn[0].setTextColor(0x60000000);
+            okBtn[0].setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    UiUtils.prefs(SettingsDetailActivity.this).edit()
+                            .putString("ui_glass_enabled", "1").commit();
+                    try { holder[0].dismiss(); } catch (Throwable t) {}
+                    Toast.makeText(SettingsDetailActivity.this,
+                            LanguageManager.t(ctx, "experimental_enabled_toast", "已开启毛玻璃效果"),
+                            Toast.LENGTH_SHORT).show();
+                    recreate();
+                }
+            });
+        }
+
+        final String okTpl = LanguageManager.t(ctx, "experimental_confirm_ok_wait", "我确定（%d）");
+        final String okDone = LanguageManager.t(ctx, "experimental_confirm_ok", "我确定");
+
+        timer[0] = new android.os.CountDownTimer(waitSec * 1000L, 1000L) {
+            @Override public void onTick(long ms) {
+                int remain = (int) ((ms + 999) / 1000);
+                try {
+                    if (okBtn[0] != null) okBtn[0].setText(okTpl.replace("%d", String.valueOf(remain)));
+                } catch (Throwable t) {}
+            }
+            @Override public void onFinish() {
+                try {
+                    if (okBtn[0] != null) {
+                        okBtn[0].setEnabled(true);
+                        okBtn[0].setTextColor(UiOverrides.primary(SettingsDetailActivity.this));
+                        okBtn[0].setText(okDone);
+                    }
+                } catch (Throwable t) {}
+            }
+        };
+        try { timer[0].start(); } catch (Throwable t) {}
     }
 }

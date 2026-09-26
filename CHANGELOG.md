@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog,
 and this project adheres to Semantic Versioning.
 
+[1.3.0] - 2026-09-26
+
+文生图（架构级新能力）
+
+· ★ 新增 ImageGenConfig.java：预设 4 家供应商（智谱 CogView / OpenAI DALL-E / SiliconFlow Kolors / 自定义 OpenAI 兼容）；配置项 baseUrl / apiKey / model / size；缺项自动回退到「AI 接入」里的主配置，Key 留空也能用主 Key
+· ★ 新增 ImageGenClient.java：POST {baseUrl}/images/generations，同步生成；自动处理 url 与 b64_json 两种返回格式；url 结果自动下载并转 JPEG base64
+· ★ 新增 generate_image 工具供 AI 调用：参数 prompt（图像描述）+ size（可选尺寸）；生成的图片自动附到对话（走图片消息渲染管线，可放大 / 长按保存）
+· ★ 设置首页「AI 与模型」分组新增「文生图」二级页：供应商 / API 地址 / API Key / 模型 / 默认尺寸；每项留空均回退到预设或主配置
+· 支持跨供应商：主 AI 用 DeepSeek，文生图单独用智谱 CogView 亦可
+
+Liquid Glass 重做
+
+· ★ LiquidGlassDrawable 从「屏幕背景裁切 + 高斯模糊」重做为「纯 Canvas 多层渐变」，共 7 层：半透明填充底色 → 顶部主高光（white → transparent 竖向渐变）→ 左上斜向反光条 → 右下暗角（模拟光源方向）→ 内侧白色描边（玻璃边缘折射）→ 底部内侧阴影（厚度感）→ 左上内侧亮边（弧形高光）
+· ★ 不再依赖聊天背景图：没有背景图时（默认渐变底）也能呈现玻璃质感；气泡 / 按钮 / 卡片 / 顶栏 / 输入栏 / 抽屉 / 菜单 / 设置卡片全部走新绘制
+· ★ UiOverrides 的 4 个 view-aware 重载（bubbleUserBgDrawable / bubbleAiBgDrawable / codeBgDrawable / cardBgDrawable）改为直接转发无 view 版，不再触发背景裁切与模糊；BackdropBlurHelper / GlassBackdropHelper 保留但不再被调用
+· 保留 Bitmap 参数的构造函数重载以便兼容旧调用方，Bitmap 参数已被忽略
+
+模型选择菜单（紧凑锚定 + 动画）
+
+· ★ GlassMenuDialog 新增紧凑模式 showCompactItems / showCompactItemsAt：宽度屏宽 60%（上限 240dp，下限 180dp），比标准模式（86% / 320dp）更窄；项高度 10dp 更紧凑；每项右侧可显示 trailing（如当前项 ✓、跳转项 ›）
+· ★ 锚定弹出：点击顶栏模型名 → 菜单在模型名正下方 6dp 处展开，不再屏幕居中；左右自动限制在屏幕边距 8dp 内
+· ★ 弹出动画：scale 0.7 → 1.0 + alpha 0 → 1，200ms，DecelerateInterpolator，pivot 在顶部中央（视觉从锚点"长出来"）；收起动画：scale → 0.9 + alpha → 0，120ms，结束后再 dismiss 与执行切换
+· ★ 修复锚点坐标偏移状态栏高度：dialog window 加 FLAG_LAYOUT_IN_SCREEN / FLAG_LAYOUT_NO_LIMITS，让 window 坐标系与 View.getLocationOnScreen() 对齐
+· 标准模式 showItems 保持不动，其它菜单（会话菜单 / 更多菜单 / 附件菜单等）不受影响
+
+关于 app
+
+· ★ 设置首页「系统」分组新增「关于」二级页
+· 显示：应用信息（应用名 / 版本号 / 包名 / 作者）、相关链接（GitHub 仓库可点开）、语言（点击切换语言，含内置与自定义语言包）、致谢
+· 语言快捷入口：从「关于」页直接切换语言，无需先进入「语言」二级页；切换后设置页立即生效，其它页面下次进入生效
+· GitHub 链接：https://github.com/WuWuoooo/Ai-Office-android
+
+语言适配
+
+· ★ zh-CN.json / en-US.json 新增约 30 条 key：settings_row_about / settings_row_image_gen / about_* （13 条）/ imagegen_*（11 条）
+· 所有新页面文案全部接入 LanguageManager.t(...)，中英文完整覆盖
+
+Fixed
+
+· ★ 修复 UiOverrides.java 末尾 4 个 view-aware 重载被重复定义两次，导致 AIDE 报「method cannot be applied to (Context)」一类错误
+· ★ 修复 MainActivity.addUserBubble 方法尾部残留两段重复的「局部模糊玻璃应用」代码：第一段末尾的 `}` 提前闭合了方法，第二段代码掉到类级别，导致 Unknown entity 'box' / Unexpected end of declaration / Wrong '}' 共 9 个编译错误
+· ★ 修复 UiUtils.java 中被误粘入 UiOverrides 的方法（glassEnabled / glassAlphaValue / bubbleRadius / *BgDrawable）：这些方法全部归位到 UiOverrides
+· 修复模型选择菜单在状态栏下方展开时位置偏低（相差一个状态栏高度）
+· 修复模型选择菜单弹出/收起无动画、视觉生硬
+
+Changed
+
+· 实验性功能 → 毛玻璃效果：描述文案由「对聊天背景做一次高斯模糊」改为「纯 Canvas 绘制的液态玻璃质感」，不再需要 1-2 秒背景处理时间，低端机也能流畅开
+· MainActivity.refreshTools() 调用改为 AiClient.buildTools(allowShell, allowA11y, true)，文生图工具默认注册
+· AiClient.buildTools 增加三参数重载；两参数版本保留并转发到三参数版（allowImageGen 传 false），兼容旧调用
+· 设置首页「AI 与模型」分组由 3 项（AI 接入 / 识图 API / 联网搜索）扩为 4 项（+ 文生图）；「系统」分组由 2 项（权限 / 余额查询）扩为 3 项（+ 关于）
+
 [1.2.0] - 2026-09-25
 
 多语言系统（架构级新能力）

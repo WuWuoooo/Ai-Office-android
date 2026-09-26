@@ -9,20 +9,20 @@ import android.view.View;
 
 public class BaseActivity extends Activity {
 
-    @Override
-    protected void attachBaseContext(Context newBase) {
-        Context c = UiUtils.applyFontScale(newBase);
-        try {
-            SharedPreferences p = c.getSharedPreferences("ai_office_config", Context.MODE_PRIVATE);
-            String style = p.getString("theme_style", "system");
-            if ("light".equals(style)) {
-                setTheme(android.R.style.Theme_DeviceDefault_Light_NoActionBar);
-            } else if ("dark".equals(style)) {
-                setTheme(android.R.style.Theme_DeviceDefault_NoActionBar);
-            }
-        } catch (Throwable t) {}
-        super.attachBaseContext(c);
-    }
+@Override
+protected void attachBaseContext(Context newBase) {
+    Context c = UiUtils.applyThemeAndFont(newBase);
+    try {
+        SharedPreferences p = c.getSharedPreferences("ai_office_config", Context.MODE_PRIVATE);
+        String style = p.getString("theme_style", "system");
+        if ("light".equals(style)) {
+            setTheme(android.R.style.Theme_DeviceDefault_Light_NoActionBar);
+        } else if ("dark".equals(style)) {
+            setTheme(android.R.style.Theme_DeviceDefault_NoActionBar);
+        }
+    } catch (Throwable t) {}
+    super.attachBaseContext(c);
+}
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

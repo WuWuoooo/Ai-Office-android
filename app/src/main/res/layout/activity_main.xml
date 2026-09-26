@@ -2,7 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/md_surface">
+    android:background="@color/md_surface"
+    android:fitsSystemWindows="false">
 
     <LinearLayout
         android:id="@+id/llMainRoot"
@@ -255,22 +256,24 @@
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
-            <EditText
-                android:id="@+id/etInput"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@drawable/edittext_bg"
-                android:gravity="center_vertical|left"
-                android:hint="给 AI Office 发送消息，@ 可引用文件"
-                android:inputType="textMultiLine|textCapSentences"
-                android:maxLines="6"
-                android:minHeight="40dp"
-                android:paddingLeft="14dp"
-                android:paddingRight="14dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:textSize="15sp" />
+<EditText
+    android:id="@+id/etInput"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:background="@drawable/edittext_bg"
+    android:gravity="center_vertical|left"
+    android:hint="给 AI Office 发送消息，@ 可引用文件"
+    android:includeFontPadding="false"
+    android:inputType="textMultiLine|textCapSentences"
+    android:maxHeight="96dp"
+    android:maxLines="4"
+    android:minHeight="40dp"
+    android:paddingLeft="14dp"
+    android:paddingRight="14dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:textSize="15sp" />
 
             <TextView
                 android:id="@+id/btnSend"

@@ -21,15 +21,15 @@ public class UiUtils {
     public static int dp(Context c, float v) {
         return (int) (v * c.getResources().getDisplayMetrics().density + 0.5f);
     }
-    
+
     public static int sp(Context c, float v) {
-    try {
-        float scaledDensity = c.getResources().getDisplayMetrics().scaledDensity;
-        return (int) (v * scaledDensity + 0.5f);
-    } catch (Throwable t) {
-        return (int) v;
+        try {
+            float scaledDensity = c.getResources().getDisplayMetrics().scaledDensity;
+            return (int) (v * scaledDensity + 0.5f);
+        } catch (Throwable t) {
+            return (int) v;
+        }
     }
-}
 
     public static void toast(Context c, String msg) {
         try { Toast.makeText(c, msg, Toast.LENGTH_SHORT).show(); } catch (Throwable t) {}
@@ -79,10 +79,6 @@ public class UiUtils {
     // 字体缩放（跟随系统 / 手动倍率）
     // ============================================================
 
-    /**
-     * 读取字体缩放倍率。0 表示「跟随系统」；
-     * 其余返回 1.0 / 1.15 / 1.3 / 1.5 等具体倍率。
-     */
     public static float fontScaleSetting(Context c) {
         try {
             String v = prefs(c).getString("font_scale", "0");
@@ -91,13 +87,45 @@ public class UiUtils {
         } catch (Throwable t) { return 0f; }
     }
 
-    /** 按设置包装 Context（用于 Activity.attachBaseContext） */
+    /** 仅按字体缩放包装 Context（旧接口，保留兼容） */
     public static Context applyFontScale(Context base) {
         try {
             float scale = fontScaleSetting(base);
-            if (scale <= 0f) return base;   // 跟随系统：不动 Configuration
+            if (scale <= 0f) return base;
             Configuration cfg = new Configuration(base.getResources().getConfiguration());
             cfg.fontScale = scale;
+            return base.createConfigurationContext(cfg);
+        } catch (Throwable t) { return base; }
+    }
+
+    /**
+     * 同时应用「主题（浅色/深色/跟随系统）」和「字体缩放」到 Configuration。
+     * 用户选浅色时，即使系统是深色，资源也会走 values/ 而不是 values-night/。
+     */
+    public static Context applyThemeAndFont(Context base) {
+        if (base == null) return base;
+        try {
+            SharedPreferences p = base.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            String themeStyle = p.getString("theme_style", "system");
+            float scale = fontScaleSetting(base);
+
+            Configuration cfg = new Configuration(base.getResources().getConfiguration());
+            boolean changed = false;
+
+            if (scale > 0f) {
+                cfg.fontScale = scale;
+                changed = true;
+            }
+
+            if ("light".equals(themeStyle)) {
+                cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | Configuration.UI_MODE_NIGHT_NO;
+                changed = true;
+            } else if ("dark".equals(themeStyle)) {
+                cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | Configuration.UI_MODE_NIGHT_YES;
+                changed = true;
+            }
+
+            if (!changed) return base;
             return base.createConfigurationContext(cfg);
         } catch (Throwable t) { return base; }
     }
@@ -137,12 +165,12 @@ public class UiUtils {
                 if ("text".equals(type)) {
                     String t = optStr(part, "text");
                     if (t.length() > 0) {
-                        if (sb.length() > 0) sb.append('\n');
+                        if (sb.length() > 0) sb.append((char) 10);
                         sb.append(t);
                     }
                 } else if ("image_url".equals(type)) {
                     if (!withImageTag) continue;
-                    if (sb.length() > 0) sb.append('\n');
+                    if (sb.length() > 0) sb.append((char) 10);
                     sb.append("[图片]");
                 }
             }
@@ -215,7 +243,7 @@ public class UiUtils {
         return null;
     }
 
-    /** 从消息里解析出第一张可用的图片 base64：data: 直接取；ref: 读本地文件转码（供编辑重发等场景） */
+    /** 从消息里解析出第一张可用的图片 base64：data: 直接取；ref: 读本地文件转码 */
     public static String resolveImageBase64(String url) {
         if (url == null || url.length() == 0) return null;
         String path = refImagePath(url);
@@ -237,10 +265,9 @@ public class UiUtils {
     }
 
     // ============================================================
-    // SharedPreferences 写入（commit 同步落盘，进程被杀不丢）
+    // SharedPreferences 写入（commit 同步落盘）
     // ============================================================
 
-    /** 空值 = 删除该 key（避免空字符串覆盖默认值导致「配置消失」） */
     public static void putStr(Context c, String key, String v) {
         try {
             if (v == null || v.length() == 0) prefs(c).edit().remove(key).commit();

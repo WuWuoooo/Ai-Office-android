@@ -14,14 +14,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 语言管理器：
- *   1) custom_ 开头的 id → filesDir/lang/<id>.json
- *   2) 其余 id → assets/lang/<id>.json
- *   3) 读不到 → 代码内置兜底（保证功能一定可用）
- *
- * t(ctx, key, default) 找不到 key 返回 default。
- */
 public class LanguageManager {
 
     private static final String PREFS = "ai_office_config";
@@ -37,7 +29,7 @@ public class LanguageManager {
     /**
      * 内置英文语言包（assets 读不到时的兜底）。
      * 格式：一行一条，"key|value"。
-     * 约束：value 中绝不出现 | " \ 及换行，避免任何转义问题。
+     * 约束：value 中绝不出现 | " \ 及换行。
      */
     private static final String[] BUILTIN_EN = {
         "app_name|Ai Office",
@@ -56,7 +48,7 @@ public class LanguageManager {
         "common_yes|Yes",
         "common_no|No",
         "settings|Settings",
-        "settings_section_ai|AI & Models",
+        "settings_section_ai|AI and Models",
         "settings_section_voice|Voice",
         "settings_section_app|App",
         "settings_section_data|Data",
@@ -75,13 +67,14 @@ public class LanguageManager {
         "settings_row_permission|Permissions",
         "settings_row_balance|Balance",
         "settings_row_language|Language",
+        "settings_row_experimental|Experimental",
         "lang_title|Language",
         "lang_builtin|Built-in Languages",
         "lang_custom|Custom Language Packs",
         "lang_import|Import language pack (.json)",
         "lang_export|Export current language pack",
         "lang_delete|Delete language pack",
-        "lang_hint|Language pack format: JSON with name and strings. Export a built-in pack as a template, translate it, then re-import. Switching applies to Settings immediately; other pages take effect when reopened.",
+        "lang_hint|Language pack format: JSON with name and strings. Export a built-in pack as a template, translate it, then re-import.",
         "lang_none_custom|(No custom language packs)",
         "lang_switched|Language switched",
         "lang_export_done|Exported to: ",
@@ -114,7 +107,7 @@ public class LanguageManager {
         "vision_base_url|Vision API URL",
         "vision_api_key|Vision API Key",
         "vision_protocol|Vision Protocol",
-        "vision_hint|Leave blank to reuse the main AI config. When an image is sent, the app switches to the vision model automatically.",
+        "vision_hint|Leave blank to reuse the main AI config.",
         "vision_edit_model|Vision Model",
         "vision_edit_base_url|Vision API URL",
         "vision_edit_api_key|Vision API Key",
@@ -123,10 +116,10 @@ public class LanguageManager {
         "search_section_engine|Search Engine",
         "search_provider|Search Provider",
         "search_api_key|Search API Key",
-        "search_override_url|Request URL (overridable)",
+        "search_override_url|Request URL",
         "search_override_body|Request Body Template",
         "search_count|Result Count",
-        "search_section_reader|Web Reader (fetch_url)",
+        "search_section_reader|Web Reader",
         "search_reader_format|Return Format",
         "search_section_custom|Custom Provider Parameters",
         "search_custom_method|Request Method",
@@ -142,15 +135,15 @@ public class LanguageManager {
         "search_edit_override_url|Request URL (empty = built-in)",
         "search_edit_override_body|Request body template (empty = built-in)",
         "search_edit_count|Result count (1-50)",
-        "search_edit_custom_url|Request URL (supports query, count, api_key placeholders)",
-        "search_edit_custom_body|Request body (supports query_raw, count, api_key placeholders)",
-        "search_edit_custom_auth_header|Auth header name (e.g. Authorization)",
-        "search_edit_custom_auth_prefix|Auth header prefix (e.g. Bearer space)",
-        "search_edit_custom_result_path|Result array path (e.g. web.results)",
+        "search_edit_custom_url|Request URL",
+        "search_edit_custom_body|Request body",
+        "search_edit_custom_auth_header|Auth header name",
+        "search_edit_custom_auth_prefix|Auth header prefix",
+        "search_edit_custom_result_path|Result array path",
         "search_edit_custom_title_key|Title Field",
         "search_edit_custom_content_key|Content Field",
         "search_edit_custom_link_key|Link Field",
-        "search_hint|Bing / DuckDuckGo are free and need no key. For other providers, set the key in Search API Key.",
+        "search_hint|Bing and DuckDuckGo are free. Other providers need an API key.",
         "realtime_title|Realtime Call",
         "realtime_section|Realtime Model",
         "realtime_provider|Provider",
@@ -159,7 +152,7 @@ public class LanguageManager {
         "realtime_api_key|API Key",
         "realtime_protocol|Protocol",
         "realtime_voice|Voice",
-        "realtime_hint|Empty URL / model / key will fall back to provider presets; if key is still empty, the main AI key is used. GLM-Realtime: wss://open.bigmodel.cn/api/paas/v4/realtime, model glm-realtime-flash. OpenAI Realtime: wss://api.openai.com/v1/realtime, model gpt-4o-realtime-preview.",
+        "realtime_hint|Empty URL / model / key will fall back to provider presets.",
         "realtime_pick_provider|Choose Realtime Provider",
         "realtime_edit_url|WebSocket URL (empty = built-in)",
         "realtime_edit_model|Model (empty = built-in)",
@@ -175,7 +168,7 @@ public class LanguageManager {
         "tts_voice|Voice",
         "tts_format|Return Format",
         "tts_speed|Speed",
-        "tts_hint|Enable TTS is the master switch. Auto-read AI replies controls whether each reply is read aloud; when off, tap the Speak button next to a reply. Zhipu glm-tts example: URL https://open.bigmodel.cn/api/paas/v4/audio/speech, model glm-tts, voice tongtong, format wav. Leave API URL empty to use system TTS.",
+        "tts_hint|Enable TTS is the master switch. Leave API URL empty to use system TTS.",
         "tts_unset|(Not set, will use system TTS)",
         "tts_edit_url|TTS API URL (empty = system TTS)",
         "tts_edit_key|TTS API Key",
@@ -215,7 +208,7 @@ public class LanguageManager {
         "appearance_pick_bg|Chat Background",
         "appearance_from_gallery|Choose from gallery",
         "appearance_clear_bg|Clear background",
-        "appearance_pick_theme|Theme (fully effective after restart)",
+        "appearance_pick_theme|Theme",
         "appearance_pick_font|Font Size",
         "appearance_theme_system|Follow system",
         "appearance_theme_light|Light",
@@ -237,8 +230,8 @@ public class LanguageManager {
         "toggle_image_as_file|Send image as local file path",
         "toggle_section_advanced|Advanced Permissions",
         "toggle_script|Allow script plugins",
-        "toggle_shell|Allow AI to run commands (shell / JS)",
-        "toggle_a11y|Allow AI phone control (accessibility)",
+        "toggle_shell|Allow AI to run commands",
+        "toggle_a11y|Allow AI phone control",
         "toggle_hint|Script plugins can execute shell commands. Enable only if you trust the source.",
         "toggle_script_on|Script plugins enabled. Restart the app to take effect.",
         "toggle_script_off|Script plugins disabled",
@@ -246,15 +239,17 @@ public class LanguageManager {
         "toggle_shell_off|Command execution disabled",
         "toggle_a11y_on|Enabled. Please enable the accessibility service in Permissions.",
         "toggle_a11y_off|Phone control disabled",
+        "toggle_script_on_short|On",
+        "toggle_script_off_short|Off",
         "memory_title|Long-term Memory",
         "memory_section|Long-term Memory",
         "memory_manage|Manage entries",
-        "memory_hint|AI refers to these memories in every conversation. You can add entries manually here, or tap an entry to delete it.",
+        "memory_hint|AI refers to these memories in every conversation.",
         "memory_picker_title|Long-term Memory (%d entries)",
-        "memory_add_new|+ Add memory",
+        "memory_add_new|Add memory",
         "memory_edit_title|Edit Memory",
         "memory_add_title|Add Memory",
-        "memory_key_hint|Key (letters/digits, e.g. user_pref)",
+        "memory_key_hint|Key (letters/digits)",
         "memory_value_hint|Content",
         "memory_saved|Saved",
         "memory_deleted|Deleted",
@@ -262,13 +257,14 @@ public class LanguageManager {
         "memory_key_required|Key cannot be empty",
         "memory_edit|Edit",
         "memory_delete|Delete",
+        "memory_count_unit|items",
         "prompt_title|System Prompt",
         "prompt_section|System Prompt",
         "prompt_edit|Edit system prompt",
         "prompt_default|Default",
         "prompt_custom|Customized",
         "prompt_hint|Leave empty to use the built-in default prompt.",
-        "prompt_dialog_title|System Prompt (empty = default)",
+        "prompt_dialog_title|System Prompt",
         "plugin_title|Plugins",
         "plugin_section_loaded|Loaded Plugins",
         "plugin_view|View loaded plugins",
@@ -276,11 +272,11 @@ public class LanguageManager {
         "plugin_section_override|UI Overrides",
         "plugin_view_override|View current UI overrides",
         "plugin_clear_override|Clear all UI overrides",
-        "plugin_hint|Place .json plugins under /sdcard/AI/plugins/ and restart the app. UI plugins with settings_item extension appear above. Plugins with action.kind = ui_change can override colors.",
+        "plugin_hint|Place .json plugins under /sdcard/AI/plugins/ and restart the app.",
         "plugin_override_none|(None)",
         "plugin_override_count|%d items",
         "plugin_clear_confirm_title|Clear all UI overrides?",
-        "plugin_clear_confirm_msg|Colors and sizes will be restored to defaults (other settings are unaffected). Tip: return to the main screen to see the effect.",
+        "plugin_clear_confirm_msg|Colors and sizes will be restored to defaults. Return to the main screen to see the effect.",
         "plugin_cleared|Cleared. Return to main screen to take effect.",
         "plugin_read_fail|Read failed: ",
         "plugin_result_title|Plugin Result",
@@ -291,7 +287,7 @@ public class LanguageManager {
         "permission_section|System Permissions",
         "permission_all_files|Request All Files Access",
         "permission_a11y|Enable Accessibility Service",
-        "permission_hint|Android 11+ needs All Files Access to read/write /sdcard; AI phone control needs the accessibility service.",
+        "permission_hint|Android 11+ needs All Files Access to read/write /sdcard.",
         "permission_no_a11y|Cannot open accessibility settings",
         "permission_no_all_files|Cannot open permission settings",
         "permission_not_needed|Not needed on this Android version",
@@ -299,7 +295,7 @@ public class LanguageManager {
         "balance_section|Balance",
         "balance_url|Balance API URL",
         "balance_query|Query now",
-        "balance_hint|Usually the provider balance endpoint, e.g. DeepSeek /user/balance.",
+        "balance_hint|Usually the provider balance endpoint.",
         "balance_edit_url|Balance API URL",
         "balance_result|Balance Result",
         "balance_querying|Querying...",
@@ -328,7 +324,7 @@ public class LanguageManager {
         "more_import_md|Import Markdown chat",
         "more_import_json|Import JSON chat",
         "more_compress|Compress context",
-        "more_restore_ctx|Restore full context (clear summary)",
+        "more_restore_ctx|Restore full context",
         "more_clear_session|Clear current chat",
         "more_open_settings|Open settings",
         "session_menu_switch|Switch to this chat",
@@ -398,7 +394,7 @@ public class LanguageManager {
         "attach_no_camera|No camera app found",
         "attach_no_camera2|Cannot open camera: ",
         "realtime_not_configured_title|Realtime call is not fully configured",
-        "realtime_not_configured_msg|Please configure the WebSocket URL / model / API key under Settings, Voice, Realtime Call first. Go configure now?",
+        "realtime_not_configured_msg|Please configure the WebSocket URL / model / API key under Settings first.",
         "realtime_go_config|Configure",
         "realtime_no_open|Cannot open call screen: ",
         "image_dialog_hint|Tap anywhere to close. Long-press to save to AI/exports",
@@ -415,7 +411,7 @@ public class LanguageManager {
         "model_switched|Switched to ",
         "model_no_picker|Cannot open model list",
         "tts_not_enabled_title|TTS is not enabled",
-        "tts_not_enabled_msg|Please enable TTS under Settings, TTS. If no API URL is set, the system TTS will be used.",
+        "tts_not_enabled_msg|Please enable TTS under Settings, TTS.",
         "tts_go_enable|Enable now",
         "tts_start|Speaking...",
         "tts_stopped|Stopped",
@@ -455,9 +451,9 @@ public class LanguageManager {
         "import_choose_md|Choose Markdown file",
         "import_choose_json|Choose JSON file",
         "compress_note|Context is long, compressing early messages into a summary...",
-        "compress_done|Context compressed: original chat preserved; AI will see summary plus recent part.",
+        "compress_done|Context compressed: original chat preserved.",
         "compress_fail|Context compression failed, continuing with full context",
-        "ctx_restored|Full context restored (compression summary cleared)",
+        "ctx_restored|Full context restored",
         "ref_image_invalid|Chat background is no longer valid, please choose again in Settings",
         "no_bg|Not set",
         "more_menu_view_loaded_plugins|View loaded plugins",
@@ -499,7 +495,20 @@ public class LanguageManager {
         "realtime_status_cam_on|Video on",
         "realtime_status_screen_off|Screen share stopped",
         "realtime_status_screen_on|Sharing screen",
-        "realtime_system_prompt|You are an AI office assistant running on a phone. The user speaks to you by voice, please reply concisely and naturally. When the user needs to read files, search the web, or control the phone, you may call tools. This is a real-time call, keep replies short."
+        "realtime_system_prompt|You are an AI office assistant running on a phone. Reply concisely and naturally.",
+        "experimental_title|Experimental",
+        "experimental_section|Experimental",
+        "experimental_glass_enabled|Liquid Glass",
+        "experimental_glass_alpha|Bubble opacity",
+        "experimental_glass_hint|Liquid Glass makes bubbles, cards and panels render as translucent glass. Experimental feature; may take 1-2 seconds to process the background.",
+        "experimental_confirm_title|Confirm experimental feature",
+        "experimental_confirm_msg|This is an experimental feature. If you want to enable it, please first make sure you know what you are doing. Please wait 5 seconds before confirming.",
+        "experimental_confirm_ok_wait|I understand (%d)",
+        "experimental_confirm_ok|I understand",
+        "experimental_on|Liquid Glass on",
+        "experimental_off|Off",
+        "experimental_enabled_toast|Liquid Glass enabled",
+        "experimental_disabled_toast|Liquid Glass disabled"
     };
 
     private static File langDir(Context ctx) {
@@ -555,7 +564,6 @@ public class LanguageManager {
         return out;
     }
 
-    /** 诊断：返回 {id, source, count}，source ∈ custom / assets / builtin / err */
     public static String[] diagnose(Context ctx) {
         try {
             ensureLoaded(ctx);
@@ -576,7 +584,6 @@ public class LanguageManager {
         JSONObject o = null;
         String source = "";
 
-        // 1) 自定义
         if (id.startsWith("custom_")) {
             try {
                 File f = new File(langDir(ctx), id + ".json");
@@ -587,7 +594,6 @@ public class LanguageManager {
             } catch (Throwable t) { o = null; }
         }
 
-        // 2) assets
         if (o == null) {
             try {
                 InputStream is = ctx.getAssets().open("lang/" + id + ".json");
@@ -601,7 +607,6 @@ public class LanguageManager {
             } catch (Throwable t) { o = null; }
         }
 
-        // 3) 内置兜底
         if (o == null) {
             o = builtinPack(id);
             source = "builtin";
@@ -719,10 +724,6 @@ public class LanguageManager {
         } catch (Throwable t) { return false; }
     }
 
-    // ============================================================
-    // 内置兜底语言包
-    // ============================================================
-
     private static JSONObject builtinEnStrings() {
         JSONObject s = new JSONObject();
         try {
@@ -741,8 +742,6 @@ public class LanguageManager {
     private static JSONObject builtinZhStrings() {
         JSONObject s = new JSONObject();
         try {
-            // 中文兜底时，其实 t(ctx, key, 中文默认) 已经能用，
-            // 这里只填少量关键项，其余走 t() 的第二参数默认值。
             s.put("settings", "设置");
             s.put("lang_title", "语言");
             s.put("lang_switched", "已切换语言");
@@ -754,10 +753,6 @@ public class LanguageManager {
         } catch (Throwable t) {}
         return s;
     }
-
-    // ============================================================
-    // 工具
-    // ============================================================
 
     private static String readFile(File f, int maxBytes) {
         try {
